@@ -1,3 +1,10 @@
+---
+title: "Survival Analysis of Mortality of Adjuvant Chemotherapy for Colon Cancer "
+author: "Yijia Jiang, Ziyan Xu"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
 
 # Survival analysis for the event of mortality 
 
