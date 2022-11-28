@@ -1,0 +1,95 @@
+---
+title: "Exploratory Data Analysis"
+author: "Yijia Jiang"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r, message=FALSE, include=FALSE}
+library(tidyverse)
+library(survival)
+library(table1)
+library(kableExtra)
+library(ggplot2)
+library(GGally)
+```
+
+
+# 1. Data Overview
+In this study, the dataset we used is called ‘colon’, which is found in the ‘survival’ R package. These are data from one of the first successful trials of adjuvant chemotherapy for colon cancer. Levamisole is a low-toxicity compound previously used to treat worm infestations in animals; 5-FU is a moderately toxic (as these things go) chemotherapy agent. There are two records per person, one for recurrence and one for death. There are 1858 observations and 16 variables. 
+
+* id: patient id 
+* study: 1 for all patients 
+* rx: treatment - Obs(ervation), Lev(amisole), Lev(amisole)+5-FU 
+* sex: sex (0 = Female, 1 = Male)
+* age: observation age in years 
+* obstruct: obstruction of colon by tumour (0 = No, 1 = Yes)
+* perfor: perforation of colon (0 = No, 1 = Yes)
+* adhere: adherence to nearby organs (0 = No, 1 = Yes)
+* nodes: number of lymph nodes with detectable cancer 
+* time: days until event or censoring 
+* status: censoring status (0 = Censored, 1 = Event)
+* differ: differentiation of tumour (1 = Well, 2 = Moderate, 3 = Poor) 
+* extent: extent of local spread (1 = Submucosa, 2 = Muscle, 3 = Serosa, 4 = Contiguous structures) 
+* surg: time from surgery to registration (0 = Short, 1 = Long) 
+* node4: more than 4 positive lymph nodes (0 = No, 1 = Yes)
+* etype: event type (1 = recurrence, 2 = death)
+
+
+The primary endpoints are the death of patients and the recurrence of patients. The type of censoring is right censoring, which means patients left the study before their death. 
+
+```{r message = FALSE, warning = FALSE}
+data(cancer, package = "survival") 
+colon_tb <- as_tibble(colon)
+
+colon_tb$sex <- factor(colon_tb$sex, levels = c(0,1), labels = c("Female", "Male"))
+colon_tb$obstruct <- factor(colon_tb$obstruct, levels = c(0,1), labels = c("No", "Yes"))
+colon_tb$perfor <- factor(colon_tb$perfor, levels = c(0,1), labels = c("No", "Yes"))
+colon_tb$adhere <- factor(colon_tb$adhere, levels = c(0,1), labels = c("No", "Yes"))
+colon_tb$status <- factor(colon_tb$status, levels = c(0,1), labels = c("Censored", "Dead"))
+colon_tb$differ <- factor(colon_tb$differ, levels = c(1,2,3), labels = c("Well", "Moderate","Poor"))
+colon_tb$extent <- factor(colon_tb$extent, levels = c(1,2,3,4), labels = c("Submucosa", "Muscle","Serosa","Contiguous structures"))
+colon_tb$surg <- factor(colon_tb$surg, levels = c(0,1), labels = c("Short", "Long"))
+colon_tb$node4 <- factor(colon_tb$node4, levels = c(0,1), labels = c("No", "Yes"))
+
+label(colon_tb$rx) <- "Treatment"
+label(colon_tb$sex) <- "Sex"
+label(colon_tb$age) <- "Age"
+label(colon_tb$obstruct) <- "Obstruction of colon by tumour"
+label(colon_tb$perfor) <- "Perforation of colon"
+label(colon_tb$adhere) <- "Adherence to nearby organs"
+label(colon_tb$nodes) <- "Number of lymph nodes with detectable cancer"
+label(colon_tb$time) <- "Time until event or censoring"
+label(colon_tb$status) <- "Censoring status"
+label(colon_tb$differ) <- "Differentiation of tumour"
+label(colon_tb$extent) <- "Extent of local spread"
+label(colon_tb$surg) <- "Time from surgery to registration"
+label(colon_tb$node4) <- "More than 4 positive lymph nodes"
+
+units(colon_tb$age) <- "years"
+units(colon_tb$time) <- "days"
+
+table1(~ rx + sex + age + obstruct + perfor + adhere + differ + extent + surg + nodes + node4| status, data = colon_tb %>% subset(etype == 1), overall = "Total")
+table1(~ rx + sex + age + obstruct + perfor + adhere + differ + extent + surg + nodes + node4| status, data = colon_tb %>% subset(etype == 2), overall = "Total")
+```
+
+# 2. Corrlation between Variables
+```{r}
+pairs(~ status + rx + sex + age + obstruct + perfor + adhere + differ + extent + surg + nodes + node4, data = colon %>% subset(etype == 1), panel = panel.smooth, upper.panel = NULL, main = "Scatterplot Matrix")
+
+pairs(~ status + rx + sex + age + obstruct + perfor + adhere + differ + extent + surg + nodes + node4, data = colon %>% subset(etype == 2), panel = panel.smooth, upper.panel = NULL, main = "Scatterplot Matrix")
+
+colon %>% 
+  subset(etype == 1) %>% 
+  mutate(rx = as.numeric(rx)) %>% 
+  dplyr::select(-id, -study,-etype, -time) %>%  
+  ggcorr(label = TRUE, hjust = 0.9, layout.exp = 2, label_size = 3, label_round = 2)
+
+colon %>% 
+  subset(etype == 2) %>% 
+  mutate(rx = as.numeric(rx)) %>% 
+  dplyr::select(-id, -study,-etype, -time) %>%  
+  ggcorr(label = TRUE, hjust = 0.9, layout.exp = 2, label_size = 3, label_round = 2)
+```
+
+

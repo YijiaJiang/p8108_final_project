@@ -86,10 +86,16 @@ We now use forward selection with Bayesian information criterion (BIC) to determ
 
 ```{r, message=FALSE, warning=FALSE}
 # fit all the variables in the model
-d.model.full <- coxph(Surv(time, status) ~ sex + age + obstruct + perfor + adhere + differ + extent + surg + node4, data = colon.death1)
+d.model.full <- coxph(Surv(time, status) ~ rx + sex + age + obstruct + perfor + adhere + differ + extent + surg + node4, data = colon.death1)
+
 
 # stepwise selection with BIC criterion
 d.model.bic <- step(d.model.full, direction = "both", k = log(nrow(colon.death1)))
+d.model.bic <- step(d.model.full, direction = "both", k = log(nrow(colon.death1)))
+
+formula = Surv(time, status) ~ rx + sex + age + obstruct + perfor + adhere + differ + extent + surg + node4
+
+stepwiseCox(formula, data = colon.death1, selection = "bidirection", select = "AIC") 
 
 # stepwise selection with AIC criterion
 d.model.aic <- step(d.model.full, direction = "both", k = 2)
