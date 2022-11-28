@@ -157,13 +157,17 @@ Based on the test interaction for proportionality, the result shows that the int
 &nbsp;
 
 
-### 5.2.3 Goodness of fit test
-```{r, message=FALSE, warning=FALSE}
-coxph(formula = Surv(time, status) ~ node4 + extent, data = colon.death1) %>% 
-  summary()
+## 5.3 Final model
+
+With the inclusion of treatment, our final model is given by: Surv(time, status) ~ extent + node4 + rx.
+
+```{r}
+d.final.model <-coxph(Surv(time, status) ~ extent + node4 + rx, data = colon.death1)
+summary(d.final.model)
 ```
 
+From the results of the summary function for the final mortality model, we see that after we control for all other covariates in the model the coefficient for covariate rxLev is -0.063 with a p-value of 0.57, and the hazard ratio between the group treated with rxLev and the observation group is 0.93. Furthermore, the confidence interval for the hazard ratio is (0.75, 1.17).
+On the other hand, the coefficient for covariate rxLev is -0.37 with a p-value of 0.002, and the hazard ratio between the group treated with rexLev+5Fu and the observation group is 0.69. Furthermore, the confidence interval for the hazard ratio is (0.55, 0.87).
 
 &nbsp;
-
  
