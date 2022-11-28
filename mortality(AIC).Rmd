@@ -1,0 +1,216 @@
+---
+title: "Survival Analysis of Mortality of Adjuvant Chemotherapy for Colon Cancer (AIC)"
+author: "Yijia Jiang, Ziyan Xu"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+
+```{r, message=FALSE, include=FALSE}
+library("tidyverse")
+library("survival")
+library("ggplot2")
+library("survminer")
+library("MASS")
+```
+
+
+
+# 1. Data import and Examination
+Recall that there are two records for each patient indicated by the event type (etype) variable, where etype == 1 refers to the event of a recurrence and etype == 2 indicates death. In order to answer our first research question, which is to study the time until death, we must create a marginal model by subsetting the colon data to only include the event of mortality. To get an overview of the mortality subset we use the survfit function and plot the Kaplan-Meier Estimate between the three different treatments.
+
+```{r, message=FALSE, warning=FALSE}
+# import the dataset from survival package
+data(cancer, package = "survival") 
+colon <- as_tibble(colon)
+
+# subset death data
+colon.death <- subset(colon, etype == 2)
+```
+
+&nbsp;
+
+
+# 2. Kaplan-Meier Survival Estimate
+
+```{r, message=FALSE, warning=FALSE}
+death.fit <- survfit(Surv(time,status) ~ rx, data = colon.death)
+
+ggsurvplot(death.fit, conf.int = F, break.time.by = 500, ylim = c(0.4,1.0),
+           font.x.size = 12, font.y.size = 12, font.legend.size = 9, legend.labs = c("Obs","Lev","Lev+5FU"),
+           title = "Kaplan-Meier Curve for Colon Cancer Mortality \nby Treatment", 
+           xlab = "Time (until death) in Days", 
+           risk.table = T, risk.table.height = 0.25, risk.table.fontsize = 4, 
+           tables.theme = theme_cleantable())
+```
+
+From the plot above, there is some indication that patients who received the adjuvant treatment with levamisole plus fluorouracil (Lev+5Fu) have a higher survival probability than patients with no further treatment and patients who received the treatment with levamisole alone.
+
+&nbsp;
+
+# 3. Log-Rank Test
+
+We do a proper Log-rank hypothesis test to test the null hypothesis of no difference among the three treatments in the mortality model.
+
+```{r, message=FALSE, warning=FALSE}
+d.rx.coxph <- coxph(Surv(time, status) ~rx, data = colon.death) 
+summary(d.rx.coxph)
+```
+
+From this log-rank test, we get a p-value that is closed to 0.002, which is significant at a 0.05 level. We want to conclude that there is a significant difference among the three treatments in the mortality model.
+
+&nbsp;
+
+# 4. Tidy the Data for Model Development
+Moreover, we notice that variables nodes and node4 both indicate similar information regarding the amount of positive lymph nodes an individual has. The variable nodes measures the number of lymph nodes with detectable cancer while node4 indicates whether there are more than 4 positive lymph nodes (0 = No, 1 =Yes). Therefore, we decided to use only the variable node4 in our analysis.
+
+Additionally, it is important to note that there are columns that contain NA values. Out of `r colon.death %>% nrow()` observations, `r sum(is.na(colon.death))` of them contain NA values in at least one column. Since observations that contain NA values make up only `r sum(is.na(colon.death)/nrow(colon.death)) %>% scales::percent(0.01)` of our data, we decided that removing them wouldn’t cause a big effect on the variable selection process. By removing observations with NA values, created a new mortality dataset colon.death1 which contains `r na.omit(colon.death) %>% nrow()`  observations.
+
+```{r, message=FALSE, warning=FALSE}
+# check for missing values
+apply(is.na(colon.death), 2, which) %>% 
+  str()
+
+# remove missing values
+colon.death1 <- na.omit(colon.death)
+```
+
+&nbsp;
+
+# 5. Cox PH Model 
+## 5.1 Model Selection
+
+&NewLine;
+
+We now use forward selection with Bayesian information criterion (BIC) to determine the covariates that best represent an appropriate cox proportional hazards model for the event of death. Within each step, we chose the model that has the lowest AIC and BIC value.
+
+```{r, message=FALSE, warning=FALSE}
+# fit all the variables in the model
+d.model.full <- coxph(Surv(time, status) ~ sex + age + obstruct + perfor + adhere + differ + extent + surg + node4 +rx, data = colon.death1)
+
+# stepwise selection with AIC criterion
+d.model.aic <- step(d.model.full, direction = "both", k = 2)
+```
+
+The resulting model with the lowest AIC is:
+Surv(time, status) ~ age + obstruct + differ + extent + surg + node4 + rx
+
+Next, we used the Analysis of Deviance procedure to get the proper Likelihood Ratio Test to confirm if each of the covariates selected by the forward selection method is significant to include in the Cox Proportional Model.
+
+```{r, message=FALSE, warning=FALSE}
+anova(d.model.aic)
+```
+
+We can see that p-values for covariates "obstruct, differ, extent, surg, node4 and rx" are much smaller than 0.05, indicating that they have a significant effect on time until death. Therefore, we will include these 6 covariates in our Cox PH model.
+
+Therefore, the resulting model is:
+Surv(time, status) ~ obstruct + differ + extent + surg + node4 + rx
+
+&nbsp;
+
+
+## 5.2 Model Diagnostic 
+
+### 5.2.1 Log of Negative Log of Estimated Survival Function   
+
+&NewLine;
+
+To check the proportional hazards assumption for this model, we use a diagnostic plot such as the log of negative log of estimated survival function as we did for covariate treatment above. Then we checked the significance of each covariate again using Analysis of Deviance procedure to ensure that our previous model is still valid. First comes to covariate obstruct.
+
+```{r, message=FALSE, warning=FALSE}
+d.obstruct.fit <- survfit(Surv(time, status) ~ obstruct, data = colon.death1)
+ggsurvplot(d.obstruct.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.legend.size = 9,
+           fun = "cloglog",
+           xlim = c(20, 4000),
+           xlab = "Time (until death) in Days)",
+           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Mortality by obstruct")
+```
+
+According to the plot, the distance between two obstruct curves begin to narrow after 2000 days which causes some concern that the assumption might be violated. However, it is also reasonable to assume that the curves are wider apparent earlier in the study since there are less occurrences of death before 2000 days. Hence we believe it is best to ignore the noisiness of the plot since the curves are roughly parallel after 2000 days. Thus, the cox proportional hazards assumption is valid to use for this covariate.
+
+
+We continue to plot the C-log-log plot for the covariate differ.
+
+```{r, message=FALSE, warning=FALSE}
+d.differ.fit <- survfit(Surv(time, status) ~ differ, data = colon.death1)
+ggsurvplot(d.differ.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.legend.size = 9,
+           fun = "cloglog",
+           xlim = c(20, 4000),
+           xlab = "Time (until death) in Days)",
+           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Mortality by differ")
+```
+
+According to the plot, the curves in the C-log-log plot are crossing over after 300 days. Since there are not enough data points in each differ group to show a more comprehensive trend, it’s hard for us to make a decision based on the plot.
+
+
+We continue to plot the C-log-log plot for the covariate extent.
+
+```{r, message=FALSE, warning=FALSE}
+d.extent.fit <- survfit(Surv(time, status) ~ extent, data = colon.death1)
+ggsurvplot(d.extent.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.legend.size = 9,
+           fun = "cloglog",
+           xlim = c(20, 4000),
+           xlab = "Time (until death) in Days)",
+           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Mortality by extent")
+```
+
+According to the plot, the curves in the C-log-log plot are crossing over after 100 days. Since there are not enough data points in each extent group to show a more comprehensive trend, it’s hard for us to make a decision based on the plot.
+
+
+We continue to plot the C-log-log plot for the covariate surg.
+
+```{r, message=FALSE, warning=FALSE}
+d.surg.fit <- survfit(Surv(time, status) ~ surg, data = colon.death1)
+ggsurvplot(d.surg.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.legend.size = 9,
+           fun = "cloglog",
+           xlim = c(20, 4000),
+           xlab = "Time (until death) in Days)",
+           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Mortality by surg")
+```
+
+According to the plot, the distance between two surg curves begin to narrow after 2000 days which causes some concern that the assumption might be violated. However, it is also reasonable to assume that the curves are wider apparent earlier in the study since there are less occurrences of death before 2000 days. Hence we believe it is best to ignore the noisiness of the plot since the curves are roughly parallel after 2000 days. Thus, the cox proportional hazards assumption is valid to use for this covariate.
+
+
+We continue to plot the C-log-log plot for the covariate node4.
+
+```{r, message=FALSE, warning=FALSE}
+d.node4.fit <- survfit(Surv(time, status) ~ node4, data = colon.death1)
+ggsurvplot(d.node4.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.legend.size = 9,
+           fun = "cloglog",
+           xlim = c(20, 4000),
+           xlab = "Time (until death) in Days)",
+           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Mortality by node4")
+```
+
+According to the plot, the two curves in this C-log-log plot cross over at the beginning of the study but appear to be parallel to each other after 100 days. Since the data is oftentimes noisy at the beginning of the study, the cross over does not cause too much concern. Overall, we believe that the cox proportional assumption is appropriate for the covariate node4 since the curves are consistently parallel throughout most of the study.
+
+
+&nbsp;  
+  
+
+### 5.2.2 Test Interaction for Proportionality
+```{r, message=FALSE, warning=FALSE}
+d.model.aic.inter <- coxph(Surv(time, status) ~ obstruct + differ + extent + surg + node4 + rx + obstruct * log(time)  + differ * log(time)  + extent * log(time)  + surg * log(time) + node4 * log(time) + rx * log(time), data = colon.death1)
+summary(d.model.aic.inter)
+```
+Based on the test interaction for proportionality, the result shows that all the interactions of covaraites with `log(time)` are significant (i.e., less than 0.05). Therefore, we can conclude that the proportionality assumptions for all the covariates are met. 
+
+&nbsp;
+
+## 5.3 The final model
+
+With the inclusion of treatment, our final model is given by: Surv(time, status) ~ differ + extent + surg + node4 + rx.
+
+Once again, we perform a likelihood ratio test to determine if the treatments still have a significant effect on improving survival rate after controlling for all other variables.
+
+```{r}
+d.final.model <-coxph(Surv(time, status) ~ differ + extent + surg + node4 + rx, data = colon.death1)
+summary(d.final.model)
+```
+
+From the results of the summary function for the final mortality model, we see that after we control for all other covariates in the model the coefficient for covariate rxLev is -0.031 with a p-value of 0.78, and the hazard ratio between the group treated with rxLev and the observation group is 0.97. Furthermore, the confidence interval for the hazard ratio is (0.78, 1.21).
+On the other hand, the coefficient for covariate rxLev is -0.36 with a p-value of 0.003, and the hazard ratio between the group treated with rexLev+5Fu and the observation group is 0.678. Furthermore, the confidence interval for the hazard ratio is (0.55, 0.89).
+
+&nbsp;
+
+ 
