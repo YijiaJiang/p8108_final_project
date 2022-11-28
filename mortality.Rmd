@@ -16,7 +16,7 @@ library("MASS")
 
 
 
-### Data import and Examination
+# 1. Data import and Examination
 Recall that there are two records for each patient indicated by the event type (etype) variable, where etype == 1 refers to the event of a recurrence and etype == 2 indicates death. In order to answer our first research question, which is to study the time until death, we must create a marginal model by subsetting the colon data to only include the event of mortality. To get an overview of the mortality subset we use the survfit function and plot the Kaplan-Meier Estimate between the three different treatments.
 
 ```{r, message=FALSE, warning=FALSE}
@@ -28,8 +28,11 @@ colon <- as_tibble(colon)
 colon.death <- subset(colon, etype == 2)
 ```
 
+&nbsp;
 
-### Kaplan-Meier Survival Estimate
+
+# 2. Kaplan-Meier Survival Estimate
+
 ```{r, message=FALSE, warning=FALSE}
 death.fit <- survfit(Surv(time,status) ~ rx, data = colon.death)
 
@@ -43,17 +46,22 @@ ggsurvplot(death.fit, conf.int = F, break.time.by = 500, ylim = c(0.4,1.0),
 
 From the plot above, there is some indication that patients who received the adjuvant treatment with levamisole plus fluorouracil (Lev+5Fu) have a higher survival probability than patients with no further treatment and patients who received the treatment with levamisole alone.
 
+&nbsp;
 
-### Log-Rank Test
+# 3. Log-Rank Test
+
 We do a proper Log-rank hypothesis test to test the null hypothesis of no difference among the three treatments in the mortality model.
+
 ```{r, message=FALSE, warning=FALSE}
 d.rx.coxph <- coxph(Surv(time, status) ~rx, data = colon.death) 
 summary(d.rx.coxph)
 ```
+
 From this log-rank test, we get a p-value that is closed to 0.002, which is significant at a 0.05 level. We want to conclude that there is a significant difference among the three treatments in the mortality model.
 
+&nbsp;
 
-### Tidy the Data
+# 4. Tidy the Data for Model Development
 Moreover, we notice that variables nodes and node4 both indicate similar information regarding the amount of positive lymph nodes an individual has. The variable nodes measures the number of lymph nodes with detectable cancer while node4 indicates whether there are more than 4 positive lymph nodes (0 = No, 1 =Yes). Therefore, we decided to use only the variable node4 in our analysis.
 
 Additionally, it is important to note that there are columns that contain NA values. Out of `r colon.death %>% nrow()` observations, `r sum(is.na(colon.death))` of them contain NA values in at least one column. Since observations that contain NA values make up only `r sum(is.na(colon.death)/nrow(colon.death)) %>% scales::percent(0.01)` of our data, we decided that removing them wouldn’t cause a big effect on the variable selection process. By removing observations with NA values, created a new mortality dataset colon.death1 which contains `r na.omit(colon.death) %>% nrow()`  observations.
@@ -67,8 +75,13 @@ apply(is.na(colon.death), 2, which) %>%
 colon.death1 <- na.omit(colon.death)
 ```
 
-### Cox PH Model
-#### Model Selection
+&nbsp;
+
+# 5. Cox PH Model 
+## 5.1 Model Selection
+
+&NewLine;
+
 We now use forward selection with Bayesian information criterion (BIC) to determine the covariates that best represent an appropriate cox proportional hazards model for the event of death. Within each step, we chose the model that has the lowest AIC and BIC value.
 
 ```{r, message=FALSE, warning=FALSE}
@@ -96,10 +109,14 @@ anova(d.model.bic)
 
 We can see that p-values for covariates extent and node4 are much smaller than 0.05, indicating that they have a significant effect on time until death. Therefore, we will include these four covariates in our Cox PH model.
 
+&nbsp;
 
 
-#### Model Diagnostic
-##### Log of Negative Log of Estimated Survival Function
+## 5.2 Model Diagnostic 
+
+### 5.2.1 Log of Negative Log of Estimated Survival Function   
+
+&NewLine;     
 
 To check the proportional hazards assumption for this model, we use a diagnostic plot such as the log of negative log of estimated survival function. Then we checked the significance of each covariate again using Analysis of Deviance procedure to ensure that our previous model is still valid. First comes to covariate node4.
 
@@ -111,6 +128,7 @@ ggsurvplot(d.node4.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.l
            xlab = "Time (until death) in Days)",
            title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Mortality by node4")
 ```
+
 According to the plot, the two curves in this C-log-log plot cross over at the beginning of the study but appear to be parallel to each other after 100 days. Since the data is oftentimes noisy at the beginning of the study, the cross over does not cause too much concern. Overall, we believe that the cox proportional assumption is appropriate for the covariate node4 since the curves are consistently parallel throughout most of the study.
 
 We continue to plot the C-log-log plot for the covariate extent.
@@ -126,22 +144,25 @@ ggsurvplot(d.extent.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.
 
 According to the plot, the curves in the C-log-log plot are crossing over after 100 days. Since there are not enough data points in each extent group to show a more comprehensive trend, it’s hard for us to make a decision based on the plot.
 
+&nbsp;  
+  
 
-##### Test Interaction for Proportionality
+### 5.2.2 Test Interaction for Proportionality
 ```{r, message=FALSE, warning=FALSE}
 d.model.bic.inter <- coxph(Surv(time, status) ~ extent + node4 + extent * log(time) + node4 * log(time), data = colon.death1)
 summary(d.model.bic.inter)
 ```
 Based on the test interaction for proportionality, the result shows that the interaction of `node4` with `log(time)` and the interaction of `extent` with `log(time)` are both significant (i.e., less than 0.05). Therefore, we can conclude that the proportionality assumptions for `node4` and `exntent` are met. 
 
+&nbsp;
 
-##### Goodness of fit test
 
-```{r}
+### 5.2.3 Goodness of fit test
+```{r, message=FALSE, warning=FALSE}
 cox.zph(coxph(formula = Surv(time, status) ~ node4 + extent, data = colon.death1))
 ```
 
 
-
+&nbsp;
 
  
