@@ -159,7 +159,8 @@ Based on the test interaction for proportionality, the result shows that the int
 
 ### 5.2.3 Goodness of fit test
 ```{r, message=FALSE, warning=FALSE}
-cox.zph(coxph(formula = Surv(time, status) ~ node4 + extent, data = colon.death1))
+coxph(formula = Surv(time, status) ~ node4 + extent, data = colon.death1) %>% 
+  summary()
 ```
 
 
