@@ -16,7 +16,7 @@ library("MASS")
 
 
 
-# 1. Data import and Examination
+# 1. Data Import and Examination
 Recall that there are two records for each patient indicated by the event type (etype) variable, where etype == 1 refers to the event of a recurrence and etype == 2 indicates death. In order to answer our first research question, which is to study the time until death, we must create a marginal model by subsetting the colon data to only include the event of mortality. To get an overview of the mortality subset we use the survfit function and plot the Kaplan-Meier Estimate between the three different treatments.
 
 ```{r, message=FALSE, warning=FALSE}
@@ -53,11 +53,10 @@ From the plot above, there is some indication that patients who received the adj
 We do a proper Log-rank hypothesis test to test the null hypothesis of no difference among the three treatments in the mortality model.
 
 ```{r, message=FALSE, warning=FALSE}
-d.rx.coxph <- coxph(Surv(time, status) ~rx, data = colon.death) 
-summary(d.rx.coxph)
+survdiff(Surv(time, status) ~ rx, data = colon.death)
 ```
 
-From this log-rank test, we get a p-value that is closed to 0.002, which is significant at a 0.05 level. We want to conclude that there is a significant difference among the three treatments in the mortality model.
+From this log-rank test, we get a p-value that is closed to 0.003, which is significant at a 0.05 level. We want to conclude that there is a significant difference among the three treatments in the mortality model.
 
 &nbsp;
 
