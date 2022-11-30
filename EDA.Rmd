@@ -130,7 +130,7 @@ colon_death = colon %>%
   subset(etype == 2) %>% 
   mutate(death = ifelse(status == 1, 1, 0)) %>% 
   mutate(tt_death = time, rx = as.factor(as.numeric(rx))) %>% 
-  select(id, rx, tt_death, death)
+  select(id, rx, sex, obstruct, perfor, adhere, nodes, status, differ, extent, surg, node4, tt_death, death)
 
 colon_recur = colon %>% 
   subset(etype == 1) %>% 
@@ -143,6 +143,8 @@ colon_ass = merge(colon_death, colon_recur, by = c("id","rx")) %>%
     dplyr::arrange(id)
 
 colon_ass$tt_comp = rje::rowMins(as.matrix((colon_ass[,c("tt_death", "tt_recur")])))
+
+readr::write_csv(colon_ass, file = "./table/colon_tidy.csv")
 ```
 
 
