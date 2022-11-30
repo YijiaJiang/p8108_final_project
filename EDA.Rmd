@@ -130,7 +130,7 @@ colon_death = colon %>%
   subset(etype == 2) %>% 
   mutate(death = ifelse(status == 1, 1, 0)) %>% 
   mutate(tt_death = time, rx = as.factor(as.numeric(rx))) %>% 
-  select(id, rx, sex, obstruct, perfor, adhere, nodes, status, differ, extent, surg, node4, tt_death, death)
+  select(id, rx, sex, age, obstruct, perfor, adhere, nodes, status, differ, extent, surg, node4, tt_death, death)
 
 colon_recur = colon %>% 
   subset(etype == 1) %>% 
