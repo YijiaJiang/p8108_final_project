@@ -39,8 +39,9 @@ colon.death <- colon %>%
 
 ```{r, message=FALSE, warning=FALSE}
 death.fit <- survfit(Surv(time,status) ~ rx, data = colon.death)
-
-ggsurvplot(death.fit, conf.int = F, break.time.by = 500, 
+options(max.print = 10000)
+print(summary(death.fit))
+ggsurvplot(death.fit, conf.int = F, break.time.by = 500, pval = TRUE,
            font.x.size = 12, font.y.size = 12, font.legend.size = 9, surv.median.line = "hv",
            legend.title = "Treatment", legend.labs = c("Observation", "Levamisole","Levamisole+5-FU"),
            title = "Kaplan-Meier Curve for Colon Cancer Mortality \nby Treatment", 

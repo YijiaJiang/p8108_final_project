@@ -77,20 +77,33 @@ my.render.cat <- function(x) {
     sprintf("%d (%0.1f%%)", FREQ, PCT))))
 }
 
-# Baseline characteristic table for event death
+# Baseline characteristic table for event death (with status)
 output1 = table1(~ sex + age + obstruct + perfor + adhere + differ + extent + surg + node4| status*rx,
                  data = colon_tb %>% filter(etype == 2), 
                  render.continuous = my.render.cont, 
                  render.categorical = my.render.cat,
                  render.missing = NULL, overall = FALSE)
 
-# Baseline characteristic table for event recurrence
+# Baseline characteristic table for event recurrence (with status)
 output2 = table1(~ sex + age + obstruct + perfor + adhere + differ + extent + surg + node4| status*rx,
                  data = colon_tb %>% filter(etype == 1), 
                  render.continuous = my.render.cont, 
                  render.categorical = my.render.cat,
                  render.missing = NULL, overall = FALSE) 
 
+# Baseline characteristic table for event death (without status)
+output3 = table1(~ sex + age + obstruct + perfor + adhere + differ + extent + surg + node4| rx,
+                 data = colon_tb %>% filter(etype == 1), 
+                 render.continuous = my.render.cont, 
+                 render.categorical = my.render.cat,
+                 render.missing = NULL, overall = FALSE) 
+
+# Baseline characteristic table for event recurrence (without status)
+output4 = table1(~ sex + age + obstruct + perfor + adhere + differ + extent + surg + node4| rx,
+                 data = colon_tb %>% filter(etype == 1), 
+                 render.continuous = my.render.cont, 
+                 render.categorical = my.render.cat,
+                 render.missing = NULL, overall = FALSE) 
 
 save_table1 = function(output,file_name="temp.html"){
     css_path = system.file("table1_defaults_1.0/table1_defaults.css", package = "table1")
@@ -100,29 +113,46 @@ save_table1 = function(output,file_name="temp.html"){
 
 save_table1(output1,"./table/table1.html")
 save_table1(output2,"./table/table2.html")
+save_table1(output3,"./table/table3.html")
+save_table1(output4,"./table/table4.html")
 
 system("wkhtmltopdf --enable-local-file-access ./table/table1.html ./table/table1.pdf")
 system("wkhtmltopdf --enable-local-file-access ./table/table2.html ./table/table2.pdf")
+system("wkhtmltopdf --enable-local-file-access ./table/table3.html ./table/table3.pdf")
+system("wkhtmltopdf --enable-local-file-access ./table/table4.html ./table/table4.pdf")
 ```
 
 
 
-# 2. Corrlation between Variables
-
+# 2. Overall Association Between Treatment Groups
 ```{r, message = FALSE, warning = FALSE}
-pairs(~ status + rx + sex + age + obstruct + perfor + adhere + differ + extent + surg + nodes + node4, data = colon %>% subset(etype == 1), panel = panel.smooth, upper.panel = NULL, main = "Scatterplot Matrix")
+colon_ass = colon %>% 
+  mutate(death = ifelse(etype == 2, 1, 0),
+         recur = ifelse(etype == 1, 1, 0)) %>% 
+  mutate(comp = ifelse())
 
-pairs(~ status + rx + sex + age + obstruct + perfor + adhere + differ + extent + surg + nodes + node4, data = colon %>% subset(etype == 2), panel = panel.smooth, upper.panel = NULL, main = "Scatterplot Matrix")
-
-colon %>% 
-  subset(etype == 1) %>% 
-  mutate(rx = as.numeric(rx)) %>% 
-  dplyr::select(-id, -study,-etype, -time) %>%  
-  ggcorr(label = TRUE, hjust = 0.9, layout.exp = 2, label_size = 3, label_round = 2)
-
-colon %>% 
+colon_death = colon %>% 
   subset(etype == 2) %>% 
-  mutate(rx = as.numeric(rx)) %>% 
-  dplyr::select(-id, -study,-etype, -time) %>%  
-  ggcorr(label = TRUE, hjust = 0.9, layout.exp = 2, label_size = 3, label_round = 2)
+  mutate(death = ifelse(status == 1, 1, 0)) %>% 
+  mutate(tt_death = time, rx = as.factor(as.numeric(rx))) %>% 
+  select(id, rx, tt_death, death)
+
+colon_recur = colon %>% 
+  subset(etype == 1) %>% 
+  mutate(recur = ifelse(status == 1, 1, 0)) %>% 
+  mutate(tt_recur = time, rx = as.factor(as.numeric(rx))) %>% 
+  select(id, rx, tt_recur, recur) 
+
+colon_ass = merge(colon_death, colon_recur, by = c("id","rx")) %>% 
+  mutate(comp = ifelse(death == 1 || recur == 1, 1, 0)) %>% 
+    dplyr::arrange(id)
+
+colon_ass$tt_comp = rje::rowMins(as.matrix((colon_ass[,c("tt_death", "tt_recur")])))
+
+
+explanatory = c("age", "sex", "obstruct", "perfor")
+dependent = "Surv(time, status)"
+colon %>% subset(etype == 2)
+  survival::hr_plot(dependent, explanatory, dependent_label = "Survival")
 ```
+
