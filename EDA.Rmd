@@ -144,7 +144,7 @@ colon_ass = merge(colon_death, colon_recur, by = c("id","rx")) %>%
 
 colon_ass$tt_comp = rje::rowMins(as.matrix((colon_ass[,c("tt_death", "tt_recur")])))
 
-readr::write_csv(colon_ass, file = "./table/colon_tidy.csv")
+readr::write_csv(colon_ass, file = "./data/colon_tidy.csv")
 ```
 
 
