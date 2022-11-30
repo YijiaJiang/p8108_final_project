@@ -126,11 +126,6 @@ system("wkhtmltopdf --enable-local-file-access ./table/table4.html ./table/table
 
 # 2. Overall Association Between Treatment Groups
 ```{r, message = FALSE, warning = FALSE}
-colon_ass = colon %>% 
-  mutate(death = ifelse(etype == 2, 1, 0),
-         recur = ifelse(etype == 1, 1, 0)) %>% 
-  mutate(comp = ifelse())
-
 colon_death = colon %>% 
   subset(etype == 2) %>% 
   mutate(death = ifelse(status == 1, 1, 0)) %>% 
@@ -148,11 +143,7 @@ colon_ass = merge(colon_death, colon_recur, by = c("id","rx")) %>%
     dplyr::arrange(id)
 
 colon_ass$tt_comp = rje::rowMins(as.matrix((colon_ass[,c("tt_death", "tt_recur")])))
-
-
-explanatory = c("age", "sex", "obstruct", "perfor")
-dependent = "Surv(time, status)"
-colon %>% subset(etype == 2)
-  survival::hr_plot(dependent, explanatory, dependent_label = "Survival")
 ```
 
+
+Right now, I failed to output the table using R code. Thus, it will be represented in another sas file.
