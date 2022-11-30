@@ -220,6 +220,7 @@ splots[[4]] <- cloglog_surg
 splots[[5]] <- cloglog_node4
 splots[[6]] <- cloglog_rx
 cloglog_plot = arrange_ggsurvplots(splots, print = FALSE, ncol = 2, nrow = 3)
+
 ggsave(cloglog_plot,file = "./plot/d.C-log-log-plots.pdf",width = 12,height = 15)
 ggsave(cloglog_plot,file = "./plot/d.C-log-log-plots.png",width = 12,height = 15)
 ```
@@ -233,6 +234,8 @@ ggsave(cloglog_plot,file = "./plot/d.C-log-log-plots.png",width = 12,height = 15
 czph <- cox.zph(coxph(Surv(time, status) ~ obstruct + differ + extent + surg + node4 + rx, data = colon.death))
 schoenfeld_plot <- ggcoxzph(czph, font.main = 10, font.x = 10, font.y = 10, font.tickslab = 8,
                             point.alpha = 0.5, point.col = "grey25")
+
+schoenfeld_plot
 ggsave("./plot/d.schoenfeld residual_plots.pdf", arrangeGrob(grobs = schoenfeld_plot))
 ggsave("./plot/d.schoenfeld residual_plots.png", arrangeGrob(grobs = schoenfeld_plot))
 ```
@@ -240,20 +243,21 @@ From the output above, the tests for covariates "obstruct", "node4", "differ" ar
 
 
 
-### 4.2.2 Test influential observations
+### 4.2.2 Test influential observations 
 
 ```{r, message=FALSE, warning=FALSE}
 # check outliers in term of dfbeta
 outlier_dfbeta <- ggcoxdiagnostics(coxph(Surv(time, status) ~ obstruct + differ + extent + surg + node4 + rx, data = colon.death), 
                  type = "dfbeta", linear.predictions = FALSE,ggtheme = theme_bw())
 
+outlier_dfbeta
 ggsave(outlier_dfbeta, file = "./plot/d.outlier_dfbeta.pdf")
 ggsave(outlier_dfbeta, file = "./plot/d.outlier_dfbeta.png")
 ```
 It’s also possible to check outliers by visualizing the influence of each point, in terms of DFBETA - the impact on the coefficient of covariates in the model were that specific point to be removed from the data set. In general, we can identify the observations with positive and negative DFBETAs. The changes in beta estimates are relatively small, which indicates these observations don’t have a meaningful impact in this case, so I don’t see anything particularly influential. 
 
 
-### 4.3 Corrections for violation of the PH Assumption
+## 4.3 Corrections for violation of the PH Assumption
 ```{r, message=FALSE, warning=FALSE}
 d.model.inter1 <- coxph(Surv(time, status) ~ obstruct + differ + extent + surg + node4 + rx + obstruct*log(time) + differ*log(time) + extent*log(time) + surg*log(time) + node4*log(time) + rx*log(time) - log(time), data = colon.death)
 
@@ -267,7 +271,7 @@ Based on the test interaction for proportionality, the result shows that all the
 
 
 
-## 4.3 Final model
+## 4.4 Final model
 
 With the inclusion of treatment, our final model is given by: Surv(time, status) ~ obstruct + differ + extent + surg + node4 + rx + differt + extentt + surgt + rxt.
 
