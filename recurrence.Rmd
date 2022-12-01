@@ -1,0 +1,191 @@
+---
+title: "Survival Analysis of Recurrence of Adjuvant Chemotherapy for Colon Cancer"
+author: "Kaitlyn Wang"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r}
+library(survival)
+library(tidyverse)
+library(ggplot2)
+library(survminer)
+library(MASS)
+library(rms)
+library(gridExtra)
+```
+
+# 1. Data Import and Data Cleaning
+```{r}
+colon <- survival::colon
+colon.recur <- colon %>% filter(etype == '1') %>% 
+               dplyr::select(-c(nodes,id,study,etype)) %>% 
+               mutate(rx = as.factor(as.numeric(rx)),
+                      ) %>% 
+               drop_na()
+```
+
+&nbsp;
+
+# 2. Kaplan-Meier Survival Estimate
+```{r}
+recur.fit <- survfit(Surv(time, status) ~ rx, data = colon.recur)
+
+ggsurvplot(recur.fit, conf.int = F, break.time.by = 500,
+           font.x.size = 12, font.y.size = 12, font.legend.size = 9, surv.median.line = "hv", 
+           legend.title = "Treatment", legend.labs = c("Observation", "Levamisole","Levamisole+5-FU"),
+           title = "Kaplan-Meier Curve for Colon Cancer Recurrence \nby Treatment", 
+           xlab = "Time in Days", 
+           risk.table = T, risk.table.height = 0.25, risk.table.fontsize = 4, 
+           tables.theme = theme_cleantable())
+```
+
+&nbsp;
+
+# 3. Log-Rank Test
+```{r}
+coxph(Surv(time, status) ~ rx, data = colon.recur)
+summary(coxph(Surv(time, status) ~ rx, data = colon.recur))
+```
+
+&nbsp;
+
+# 4. Cox PH Model 
+## 4.1 Model Selection
+```{r}
+# full model
+r.model.full <- coxph(Surv(time, status) ~ ., data = colon.recur)
+
+# stepwise selection with AIC criterion
+r.model.aic <- step(r.model.full, direction = "both", k = 2)
+
+anova(r.model.aic)
+```
+
+Stepwise selection method selected model:
+Surv(time, status) ~ differ + rx + extent + surg + node4
+
+&nbsp;
+
+## 4.2 Model Diagnostic 
+### 4.2.1 Check proportionality of hazard ratios
+**Log of Negative Log of Estimated Survival Function**
+```{r}
+r.differ.fit <- survfit(Surv(time, status) ~ differ, data = colon.recur)
+cll.differ = ggsurvplot(r.differ.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.legend.size = 9,
+           fun = "cloglog",
+           xlim = c(20, 4000),
+           xlab = "Time (Days)",
+           legend.lab = c("1-well","2-moderate","3-poor"),
+           legend.title = 'Differ',
+           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by Differ")
+```
+
+```{r}
+r.extent.fit <- survfit(Surv(time, status) ~ extent, data = colon.recur)
+cll.extent = ggsurvplot(r.extent.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.legend.size = 9,
+           fun = "cloglog",
+           xlim = c(20, 4000),
+           xlab = "Time (Days)",
+           legend.lab = c("1-submucosa","2-muscle","3-serosa", "4-contiguous structures"),
+           legend.title = 'Extent',
+           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by Extent")
+```
+
+```{r}
+r.surg.fit <- survfit(Surv(time, status) ~ surg, data = colon.recur)
+cll.surg = ggsurvplot(r.surg.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.legend.size = 9,
+           fun = "cloglog",
+           xlim = c(20, 4000),
+           xlab = "Time (Days)",
+           legend.lab = c("0-short","1-long"),
+           legend.title = 'Surg',
+           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by Surg")
+```
+
+```{r}
+r.node4.fit <- survfit(Surv(time, status) ~ node4, data = colon.recur)
+cll.node4 = ggsurvplot(r.node4.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.legend.size = 9,
+           fun = "cloglog",
+           xlim = c(20, 4000),
+           xlab = "Time (Days)",
+           legend.lab = c("0 = No", "1 =Yes"),
+           legend.title = 'node4',
+           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by Nodes")
+```
+
+```{r}
+splots <- list()
+splots[[1]] <- cll.differ
+splots[[2]] <- cll.extent
+splots[[3]] <- cll.surg
+splots[[4]] <- cll.node4
+
+cloglog_plot = arrange_ggsurvplots(splots, print = FALSE, ncol = 2, nrow = 2)
+ggsave(cloglog_plot,file = "./plot/r.C-log-log-plots.pdf",width = 12,height = 15)
+ggsave(cloglog_plot,file = "./plot/r.C-log-log-plots.png",width = 12,height = 15)
+
+```
+
+**Schoenfeld residuals**
+```{r}
+r.residual = cox.zph(coxph(Surv(time, status) ~ differ + rx + extent + surg + node4, data = colon.recur))
+r.residual
+residual_plot = ggcoxzph(r.residual, font.main = 10, font.x = 10, font.y = 10, font.tickslab = 8,
+         point.alpha = 0.5, point.col = "grey25")
+
+ggsave("./plot/d.schoenfeld residual_plots.pdf", arrangeGrob(grobs = residual_plot))
+ggsave("./plot/d.schoenfeld residual_plots.png", arrangeGrob(grobs = residual_plot))
+```
+differ and node4 violates ph assumption
+
+&nbsp;
+
+
+## 4.3 Modification for Violation of PH Assumption
+```{r}
+#add interaction of covariate with function of time
+colon.recur1 = colon.recur %>% 
+               mutate(differ_time = as.numeric(differ)*log(time),
+                      node4_time = as.numeric(node4)*log(time))
+
+r.model.inter = coxph(Surv(time, status) ~ rx + extent + surg + differ + node4 + differ_time + node4_time, data = colon.recur1)
+anova(r.model.inter)
+```
+
+&nbsp;
+
+## 4.4 Final model
+```{r}
+r.final.model = coxph(Surv(time, status) ~ rx + extent + surg + differ + node4 + differ_time + node4_time, data = colon.recur1)
+summary(r.final.model)
+```
+
+```{r}
+covariates <- c("rx", "extent","surg","differ","node4","differ_time","node4_time")
+univ_formulas <- sapply(covariates,
+                        function(x) as.formula(paste('Surv(time, status)~', x)))
+                        
+univ_models <- lapply( univ_formulas, function(x){coxph(x, data = colon.recur1)})
+# Extract data 
+univ_results <- lapply(univ_models,
+                       function(x){ 
+                          x <- summary(x)
+                          p.value<-signif(x$wald["pvalue"], digits=2)
+                          wald.test<-signif(x$wald["test"], digits=2)
+                          beta<-signif(x$coef[1], digits=2);#coeficient beta
+                          HR <-signif(x$coef[2], digits=2);#exp(beta)
+                          HR.confint.lower <- signif(x$conf.int[,"lower .95"], 2)
+                          HR.confint.upper <- signif(x$conf.int[,"upper .95"],2)
+                          HR <- paste0(HR, " (", 
+                                       HR.confint.lower, "-", HR.confint.upper, ")")
+                          res<-c(beta, HR, wald.test, p.value)
+                          names(res)<-c("beta", "HR (95% CI for HR)", "wald.test", 
+                                        "p.value")
+                          return(res)
+                          #return(exp(cbind(coef(x),confint(x))))
+                         })
+res <- t(as.data.frame(univ_results, check.names = FALSE))
+as.data.frame(res)
+```
+

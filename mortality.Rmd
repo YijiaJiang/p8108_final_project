@@ -16,7 +16,7 @@ library("gridExtra")
 ```
 
 
-# 1. Data Tidy
+# 1. Data Tidy 
 Recall that there are two records for each patient indicated by the event type (etype) variable, where etype == 1 refers to the event of a recurrence and etype == 2 indicates death. In order to answer our first research question, which is to study the time until death, we must create a marginal model by subsetting the colon data to only include the event of mortality. 
 
 ```{r, message=FALSE, warning=FALSE}
