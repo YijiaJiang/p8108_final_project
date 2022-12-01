@@ -21,14 +21,21 @@ Recall that there are two records for each patient indicated by the event type (
 
 ```{r, message=FALSE, warning=FALSE}
 # import the dataset from survival package
-data(cancer, package = "survival") 
-colon <- as_tibble(colon)
+colon <- survival::colon
 
 # tidy mortality dataset
 colon.death <- colon %>% 
   dplyr::select(-id, -study, -nodes) %>% 
   drop_na() %>% 
-  mutate(rx = as.numeric(rx)) %>% 
+  mutate(rx = as.factor(as.numeric(rx)),
+         sex = as.factor(sex),
+         obstruct = as.factor(obstruct),
+         perfor = as.factor(perfor),
+         adhere = as.factor(adhere),
+         differ = as.factor(differ),
+         extent = as.factor(extent),
+         surg = as.factor(surg),
+         node4 =as.factor(node4)) %>% 
   subset(etype == 2)
 ```
 
@@ -249,24 +256,30 @@ From the output above, the tests for covariates "obstruct", "node4", "differ" ar
 ```{r, message=FALSE, warning=FALSE}
 # check outliers in term of dfbeta
 outlier_dfbeta <- ggcoxdiagnostics(coxph(Surv(time, status) ~ obstruct + differ + extent + surg + node4 + rx, data = colon.death), 
-                 type = "dfbeta", linear.predictions = FALSE,ggtheme = theme_bw())
+                                   type = "dfbeta", linear.predictions = FALSE, ggtheme = theme_bw())
 
-outlier_dfbeta
 ggsave(outlier_dfbeta, file = "./plot/d.outlier_dfbeta.pdf")
 ggsave(outlier_dfbeta, file = "./plot/d.outlier_dfbeta.png")
 ```
-It’s also possible to check outliers by visualizing the influence of each point, in terms of DFBETA - the impact on the coefficient of covariates in the model were that specific point to be removed from the data set. In general, we can identify the observations with positive and negative DFBETAs. The changes in beta estimates are relatively small, which indicates these observations don’t have a meaningful impact in this case, so I don’t see anything particularly influential. 
-
+It’s also possible to check outliers by visualizing the influence of each point, in terms of DFBETA - the impact on the coefficient of covariates in the model were that specific point to be removed from the data set. In general, we can identify the observations with positive and negative DFBETAs. Comparing the magnitudes of the largest dfbeta values to the regression coefficients suggests that none of the observations is terribly influential individually, even though some of the dfbeta values for extent are large compared with the others.
 
 ## 4.3 Corrections for violation of the PH Assumption
 ```{r, message=FALSE, warning=FALSE}
-d.model.inter1 <- coxph(Surv(time, status) ~ obstruct + differ + extent + surg + node4 + rx + obstruct*log(time) + differ*log(time) + extent*log(time) + surg*log(time) + node4*log(time) + rx*log(time) - log(time), data = colon.death)
+colon.death.inter <- colon.death %>% 
+  mutate(rxt = as.numeric(rx)*log(time),
+  differt = as.numeric(differ)*log(time),
+  extentt = as.numeric(extent)*log(time),
+  surgt = as.numeric(surg)*log(time),
+  node4t = as.numeric(node4)*log(time),
+  obstructt = as.numeric(obstruct)*log(time)) 
 
-d.model.inter2 <- coxph(Surv(time, status) ~ obstruct + differ + extent + surg + node4 + rx + differ*log(time) + extent*log(time) + surg*log(time) + rx*log(time) - log(time), data = colon.death)
+d.model.inter <- coxph(Surv(time, status) ~ obstruct + differ + extent + surg + node4 + rx + obstructt + differt + extentt + rxt + node4t + surgt, data = colon.death.inter)
 
-anova(d.model.inter2)
+summary(d.model.inter)
+anova(d.model.inter)
 ```
-Based on the test interaction for proportionality, the result shows that all the interactions of covaraites with 'log(time)' are significant (i.e., less than 0.05), except for covariate 'obstruct'. Therefore, we can include these interactions with function of time as the method of PH assumption verification and solution to its violation. Moreover, based on the results of the Analysis of Deviance procedure, the interaction of 'node4' with 'log(time)' (p-val > 0.05) is excluded from the final Cox proportional model. 
+Based on the test interaction for proportionality, the result shows that all the interactions of covaraites with 'log(time)' are significant (i.e., less than 0.05). Therefore, we can include these interactions with function of time as the method of PH assumption verification and solution to its violation. 
+
 &nbsp;
 
 
@@ -274,46 +287,11 @@ Based on the test interaction for proportionality, the result shows that all the
 
 ## 4.4 Final model
 
-With the inclusion of treatment, our final model is given by: Surv(time, status) ~ obstruct + differ + extent + surg + node4 + rx + differt + extentt + surgt + rxt.
+With the inclusion of treatment, our final model is given by: Surv(time, status) ~ obstruct + differ + extent + surg + node4 + rx + obstructt + differt + extentt + surgt + rxt + node4t.
 
 ```{r, message=FALSE, warning=FALSE}
-d.final.model <- coxph(Surv(time, status) ~ obstruct + differ + extent + surg + node4 + rx + differ*log(time) + extent*log(time) + surg*log(time) + rx*log(time) - log(time), data = colon.death)
+d.final.model <- coxph(Surv(time, status) ~ obstruct + differ + extent + surg + node4 + rx + obstructt + differt + extentt + rxt + node4t + surgt, data = colon.death.inter)
 summary(d.final.model)
-```
-
-```{r, message=FALSE, warning=FALSE}
-# output hazard ratio
-colon.death.inter <- colon.death %>% 
-  mutate(rxt = rx*log(time),
-         differt = differ*log(time),
-         extentt = extent*log(time),
-         surgt = surg*log(time))
-covariates <- c("obstruct", "differ", "extent", "surg", "node4", "rx", "differt", "extentt", "surgt", "rxt")
-
-univ_formulas <- sapply(covariates,
-                        function(x) as.formula(paste('Surv(time, status)~', x)))
-                        
-univ_models <- lapply(univ_formulas, function(x){coxph(x, data = colon.death.inter)})
-# Extract data 
-univ_results <- lapply(univ_models,
-                       function(x){ 
-                          x <- summary(x)
-                          p.value<-signif(x$wald["pvalue"], digits=2)
-                          wald.test<-signif(x$wald["test"], digits=2)
-                          beta<-signif(x$coef[1], digits=2);#coeficient beta
-                          HR <-signif(x$coef[2], digits=2);#exp(beta)
-                          HR.confint.lower <- signif(x$conf.int[,"lower .95"], 2)
-                          HR.confint.upper <- signif(x$conf.int[,"upper .95"],2)
-                          HR <- paste0(HR, " (", 
-                                       HR.confint.lower, "-", HR.confint.upper, ")")
-                          res<-c(beta, HR, wald.test, p.value)
-                          names(res)<-c("beta", "HR (95% CI for HR)", "wald.test", 
-                                        "p.value")
-                          return(res)
-                          #return(exp(cbind(coef(x),confint(x))))
-                         })
-res <- t(as.data.frame(univ_results, check.names = FALSE))
-as.data.frame(res)
 ```
 
 From the results of the summary function for the final mortality model, we see that after we control for all other covariates in the model the coefficient for covariate rxLev is -0.031, which indicates a protective effect. And the hazard rate of death for the group treated with rxlev is 3% less than observation group, with a p-value of 0.78. Furthermore, the confidence interval for the hazard ratio is (0.78, 1.21). 
@@ -323,7 +301,7 @@ On the other hand, the coefficient for covariate rxLev+5Fu is -0.36, which indic
 &nbsp;
 
 
-# 5 Discussion
+# 5. Discussion
 
 We can now observe whether treatments Levamisole and Levamisole+5-FU help improve the survival rate in colon cancer patients from negative coefficients of different treatment groups. Our result indicates that the hazard rate for the group treated with Levamisole is 97% of what it is for the observation group. Since the p-value for the coefficient is 0.78 which is greater than 0.05, there is no significant evidence to indicate a difference between the hazard rate of the group treated with Levamisole and the hazard rate of the observation group. Therefore, we conclude that the treatment Levamisole is not effective on improving the survival probability in colon cancer patients.
 On the other hand, our result indicates that the hazard rate for the group treated with Levamisole+5-FU is 67.8% of the hazard rate for the observation group. Since the p-value for the coefficient is close to 0, this indicates that there is a significant difference between the hazard rate of the group treated with Levamisole+5-FU and the hazard rate for the observation group. 

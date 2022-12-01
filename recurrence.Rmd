@@ -5,7 +5,7 @@ date: "`r Sys.Date()`"
 output: pdf_document
 ---
 
-```{r}
+```{r, include=FALSE}
 library(survival)
 library(tidyverse)
 library(ggplot2)
@@ -21,7 +21,14 @@ colon <- survival::colon
 colon.recur <- colon %>% filter(etype == '1') %>% 
                dplyr::select(-c(nodes,id,study,etype)) %>% 
                mutate(rx = as.factor(as.numeric(rx)),
-                      ) %>% 
+                      sex = as.factor(sex),
+                      obstruct = as.factor(obstruct),
+                      perfor = as.factor(perfor),
+                      adhere = as.factor(adhere),
+                      differ = as.factor(differ),
+                      extent = as.factor(extent),
+                      surg = as.factor(surg),
+                      node4 =as.factor(node4)) %>% 
                drop_na()
 ```
 
@@ -31,7 +38,7 @@ colon.recur <- colon %>% filter(etype == '1') %>%
 ```{r}
 recur.fit <- survfit(Surv(time, status) ~ rx, data = colon.recur)
 
-ggsurvplot(recur.fit, conf.int = F, break.time.by = 500,
+ggsurvplot(recur.fit, conf.int = F, break.time.by = 500, pval = TRUE,
            font.x.size = 12, font.y.size = 12, font.legend.size = 9, surv.median.line = "hv", 
            legend.title = "Treatment", legend.labs = c("Observation", "Levamisole","Levamisole+5-FU"),
            title = "Kaplan-Meier Curve for Colon Cancer Recurrence \nby Treatment", 
@@ -159,33 +166,5 @@ anova(r.model.inter)
 ```{r}
 r.final.model = coxph(Surv(time, status) ~ rx + extent + surg + differ + node4 + differ_time + node4_time, data = colon.recur1)
 summary(r.final.model)
-```
-
-```{r}
-covariates <- c("rx", "extent","surg","differ","node4","differ_time","node4_time")
-univ_formulas <- sapply(covariates,
-                        function(x) as.formula(paste('Surv(time, status)~', x)))
-                        
-univ_models <- lapply( univ_formulas, function(x){coxph(x, data = colon.recur1)})
-# Extract data 
-univ_results <- lapply(univ_models,
-                       function(x){ 
-                          x <- summary(x)
-                          p.value<-signif(x$wald["pvalue"], digits=2)
-                          wald.test<-signif(x$wald["test"], digits=2)
-                          beta<-signif(x$coef[1], digits=2);#coeficient beta
-                          HR <-signif(x$coef[2], digits=2);#exp(beta)
-                          HR.confint.lower <- signif(x$conf.int[,"lower .95"], 2)
-                          HR.confint.upper <- signif(x$conf.int[,"upper .95"],2)
-                          HR <- paste0(HR, " (", 
-                                       HR.confint.lower, "-", HR.confint.upper, ")")
-                          res<-c(beta, HR, wald.test, p.value)
-                          names(res)<-c("beta", "HR (95% CI for HR)", "wald.test", 
-                                        "p.value")
-                          return(res)
-                          #return(exp(cbind(coef(x),confint(x))))
-                         })
-res <- t(as.data.frame(univ_results, check.names = FALSE))
-as.data.frame(res)
 ```
 
