@@ -47,18 +47,26 @@ ggsurvplot(recur.fit, conf.int = F, break.time.by = 500, pval = TRUE,
            tables.theme = theme_cleantable())
 ```
 
+From the Kaplan-Meier curve shown above, there is significant difference among the three treatment groups given p-value < 0.0001, and patients treated with levamisole + 5-FU have higher survival probability than patients with no further treatment and patients who received the treatment with levamisole alone. The median survival time for observation group and levamisole group are approximately 1100 days and 1200 days, respectively. However, until the end of the trial, the survival probability of Levamisole + 5-FU treatment group is greater than 50% as we fail to observe the curve crossing the 50% line.
+
 &nbsp;
 
 # 3. Log-Rank Test
+
+Given the difference of survival probability between the three treatment groups, we conduct a Log-rank hypothesis test to test the null hypothesis of no difference among the three treatments in the mortality model.
 ```{r}
-coxph(Surv(time, status) ~ rx, data = colon.recur)
-summary(coxph(Surv(time, status) ~ rx, data = colon.recur))
+survdiff(Surv(time, status) ~ rx, data = colon.recur)
 ```
+
+From this log-rank test, we observed a p-value equal 0.00002, which indicates a significant difference among treatment groups at a 0.05 level. 
 
 &nbsp;
 
 # 4. Cox PH Model 
 ## 4.1 Model Selection
+
+We now use automatic stepwise selection with Akaike information criterion (AIC) to determine the covariates that best represent an appropriate cox proportional hazards model for the event of recurrence.
+
 ```{r}
 # full model
 r.model.full <- coxph(Surv(time, status) ~ ., data = colon.recur)
@@ -69,24 +77,38 @@ r.model.aic <- step(r.model.full, direction = "both", k = 2)
 anova(r.model.aic)
 ```
 
-Stepwise selection method selected model:
-Surv(time, status) ~ differ + rx + extent + surg + node4
+The resulting model with the AIC is:
+Surv(time, status) ~ differ + extent + surg + node4 + rx
+
+We can see that p-values for covariates "differ, extent, surg, node4 and rx" are smaller than 0.05, indicating that they have a significant effect on event time of recurrence. Therefore, we will include these 5 covariates in our Cox PH model.
+
+Therefore, we obtain the resulting model, which is Surv(time, status) ~ obstruct + differ + extent + surg + node4 + rx.
 
 &nbsp;
 
 ## 4.2 Model Diagnostic 
 ### 4.2.1 Check proportionality of hazard ratios
+
 **Log of Negative Log of Estimated Survival Function**
+
+To check the proportional hazards assumption for this model, we make diagnostic plots using log of negative log of estimated survival function. We start with differ.
+
+
 ```{r}
 r.differ.fit <- survfit(Surv(time, status) ~ differ, data = colon.recur)
 cll.differ = ggsurvplot(r.differ.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.legend.size = 9,
-           fun = "cloglog",
-           xlim = c(20, 4000),
-           xlab = "Time (Days)",
-           legend.lab = c("1-well","2-moderate","3-poor"),
-           legend.title = 'Differ',
-           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by Differ")
+                        fun = "cloglog",
+                        xlim = c(20, 4000),
+                        xlab = "Time (Days)",
+                        legend.lab = c("1-well","2-moderate","3-poor"),
+                        legend.title = 'Differ',
+                        title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by differ")
+cll.differ
 ```
+
+The assumption of proportional hazard ratio among the three differ groups is violated as we fail to see three parallel lines against log time.
+
+We continue with C-log-log plot for covariate extent.
 
 ```{r}
 r.extent.fit <- survfit(Surv(time, status) ~ extent, data = colon.recur)
@@ -96,8 +118,12 @@ cll.extent = ggsurvplot(r.extent.fit, conf.int = F, font.x.size = 12, font.y.siz
            xlab = "Time (Days)",
            legend.lab = c("1-submucosa","2-muscle","3-serosa", "4-contiguous structures"),
            legend.title = 'Extent',
-           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by Extent")
+           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by extent")
+cll.extent
 ```
+
+As shown in the plot, the curves are crossing over around 100 days. The assumption of proportional hazard ratio of extent is violated as we fail to see four parallel lines against log time.
+
 
 ```{r}
 r.surg.fit <- survfit(Surv(time, status) ~ surg, data = colon.recur)
@@ -107,8 +133,13 @@ cll.surg = ggsurvplot(r.surg.fit, conf.int = F, font.x.size = 12, font.y.size = 
            xlab = "Time (Days)",
            legend.lab = c("0-short","1-long"),
            legend.title = 'Surg',
-           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by Surg")
+           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by surg")
+cll.surg
 ```
+
+According to the C-log-log plot for surg, the lines of two groups coincide, which indicates that the cox proportional hazards assumption holds for surg.
+
+
 
 ```{r}
 r.node4.fit <- survfit(Surv(time, status) ~ node4, data = colon.recur)
@@ -118,8 +149,27 @@ cll.node4 = ggsurvplot(r.node4.fit, conf.int = F, font.x.size = 12, font.y.size 
            xlab = "Time (Days)",
            legend.lab = c("0 = No", "1 =Yes"),
            legend.title = 'node4',
-           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by Nodes")
+           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by nodes")
+cll.node4
 ```
+
+According to the plot, the two curves are approximately parallel to each other. We believe that the cox proportional assumption holds for the covariate node4.
+
+```{r, message=FALSE, warning=FALSE}
+r.rx.fit <- survfit(Surv(time, status) ~ rx, data = colon.recur)
+cll_rx <- ggsurvplot(r.rx.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.legend.size = 9,
+                         fun = "cloglog",
+                         xlim = c(20, 4000),
+                         xlab = "Time (until death) in Days)",
+                         title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Mortality by rx",
+                         legend.title = "Treatment",
+                         legend.labs = c("Observation", "Levamisole","Levamisole+5-FU"))
+
+cll_rx
+```
+
+According to the plot, the curves for observation group and levamisole group coincide, while the curve for levamisole + 5-FU is parallel to the other two curves. The proportional hazard assumption holds for covariate rx.
+
 
 ```{r}
 splots <- list()
@@ -127,8 +177,9 @@ splots[[1]] <- cll.differ
 splots[[2]] <- cll.extent
 splots[[3]] <- cll.surg
 splots[[4]] <- cll.node4
+splots[[5]] <- cll_rx
 
-cloglog_plot = arrange_ggsurvplots(splots, print = FALSE, ncol = 2, nrow = 2)
+cloglog_plot = arrange_ggsurvplots(splots, print = FALSE, ncol = 2, nrow = 3)
 ggsave(cloglog_plot,file = "./plot/r.C-log-log-plots.pdf",width = 12,height = 15)
 ggsave(cloglog_plot,file = "./plot/r.C-log-log-plots.png",width = 12,height = 15)
 
@@ -140,6 +191,7 @@ r.residual = cox.zph(coxph(Surv(time, status) ~ differ + rx + extent + surg + no
 r.residual
 residual_plot = ggcoxzph(r.residual, font.main = 10, font.x = 10, font.y = 10, font.tickslab = 8,
          point.alpha = 0.5, point.col = "grey25")
+residual_plot
 
 ggsave("./plot/d.schoenfeld residual_plots.pdf", arrangeGrob(grobs = residual_plot))
 ggsave("./plot/d.schoenfeld residual_plots.png", arrangeGrob(grobs = residual_plot))

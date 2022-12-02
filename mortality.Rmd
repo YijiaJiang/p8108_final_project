@@ -57,19 +57,19 @@ ggsurvplot(death.fit, conf.int = F, break.time.by = 500, pval = TRUE,
            tables.theme = theme_cleantable())
 ```
 
-From the plot above, there is some indication that patients who received the adjuvant treatment with levamisole plus fluorouracil (Lev+5FU) have a higher survival probability than patients with no further treatment and patients who received the treatment with levamisole alone. The median survival time for observation group and levamisole group are approximately 2100 days and 2200 days. However, until the end of the trial, the survival probability of Levamisole+5-FU treatment group is greater than 50% as we fail to observe the curve doesn't cross 50%, which means the median survival is simply undefined.
+From the plot above, there is some indication that patients who received the adjuvant treatment with levamisole plus fluorouracil (Lev + 5FU) have a higher survival probability than patients with no further treatment and patients who received the treatment with levamisole alone. The median survival time for observation group and levamisole group are approximately 2100 days and 2200 days, respectively. However, until the end of the trial, the survival probability of Levamisole + 5-FU treatment group is greater than 50% as we fail to observe the curve crossing the 50% line.
 
 &nbsp;
 
 
 # 3. Log-Rank Test
 
-Noticing the difference of survival probability between the three treatment groups, we do a Log-rank hypothesis test to test the null hypothesis of no difference among the three treatments in the mortality model.
+Noticing the difference of survival probability between the three treatment groups, we conduct a Log-rank hypothesis test to test the null hypothesis of no difference among the three treatments in the mortality model.
 ```{r, message=FALSE, warning=FALSE}
 survdiff(Surv(time, status) ~ rx, data = colon.death)
 ```
 
-From this log-rank test, we get a p-value that is closed to 0.005, which is significant at a 0.05 level. We want to conclude that there is a significant difference among the three treatments in the mortality model.
+From this log-rank test, we get a p-value equal to 0.005, which indicates a significant difference among treatment groups at a 0.05 level. 
 
 &nbsp;
 
@@ -87,7 +87,7 @@ d.model.full <- coxph(Surv(time, status) ~ . -etype, data = colon.death)
 d.model.aic <- step(d.model.full, direction = "both", k = 2)
 ```
 
-The resulting model with the lowest AIC is:
+The resulting model with the AIC is:
 Surv(time, status) ~ obstruct + differ + extent + surg + node4 + age + rx
 
 
@@ -142,7 +142,7 @@ cloglog_differ <- ggsurvplot(d.differ.fit, conf.int = F, font.x.size = 12, font.
 cloglog_differ
 ```
 
-According to the plot, the curves in the C-log-log plot are crossing over after 300 days. The assumption of proportional hazard ratio between the three differ groups is violated as we fail to see three parallel lines against log time.
+According to the plot, the curves in the C-log-log plot are crossing over after 300 days. The assumption of proportional hazard ratio among the three differ groups is violated as we fail to see three parallel lines against log time.
 
 
 We continue to plot the C-log-log plot for the covariate extent.
