@@ -257,7 +257,7 @@ From the output above, the tests for covariates "obstruct", "node4", "differ" ar
 # check outliers in term of dfbeta
 outlier_dfbeta <- ggcoxdiagnostics(coxph(Surv(time, status) ~ obstruct + differ + extent + surg + node4 + rx, data = colon.death), 
                                    type = "dfbeta", linear.predictions = FALSE, ggtheme = theme_bw())
-
+outlier_dfbeta
 ggsave(outlier_dfbeta, file = "./plot/d.outlier_dfbeta.pdf")
 ggsave(outlier_dfbeta, file = "./plot/d.outlier_dfbeta.png")
 ```

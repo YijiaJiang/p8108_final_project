@@ -193,12 +193,25 @@ residual_plot = ggcoxzph(r.residual, font.main = 10, font.x = 10, font.y = 10, f
          point.alpha = 0.5, point.col = "grey25")
 residual_plot
 
-ggsave("./plot/d.schoenfeld residual_plots.pdf", arrangeGrob(grobs = residual_plot))
-ggsave("./plot/d.schoenfeld residual_plots.png", arrangeGrob(grobs = residual_plot))
+ggsave("./plot/r.schoenfeld residual_plots.pdf", arrangeGrob(grobs = residual_plot))
+ggsave("./plot/r.schoenfeld residual_plots.png", arrangeGrob(grobs = residual_plot))
 ```
 differ and node4 violates ph assumption
 
-&nbsp;
+From the output above, the tests for covariates "node4" and "differ" are statistically significant. Therefore, we assume there is violation of proportional hazard assumption on these covariates, which requires corrections of non-proportional hazard ratio.
+
+
+### 4.2.2 Test influential observations 
+
+```{r, message=FALSE, warning=FALSE}
+# check outliers in term of dfbeta
+r.outlier_dfbeta <- ggcoxdiagnostics(coxph(Surv(time, status) ~ differ + extent + surg + node4 + rx, data = colon.recur), 
+                                   type = "dfbeta", linear.predictions = FALSE, ggtheme = theme_bw())
+r.outlier_dfbeta
+ggsave(r.outlier_dfbeta, file = "./plot/r.outlier_dfbeta.pdf")
+ggsave(r.outlier_dfbeta, file = "./plot/r.outlier_dfbeta.png")
+```
+In terms of dfbeta - the estimated changes in the regression coefficients upon deleting each observation, comparing the magnitudes of the largest dfbeta values to the regression coefficients suggests that none of the observations is terribly influential individually, even though some of the dfbeta values for extent are large compared with the others.
 
 
 ## 4.3 Modification for Violation of PH Assumption
@@ -212,6 +225,9 @@ r.model.inter = coxph(Surv(time, status) ~ rx + extent + surg + differ + node4 +
 anova(r.model.inter)
 ```
 
+???The result shows that all the interactions of covaraites with 'log(time)' are significant (i.e., less than 0.05). Therefore, we can include these interactions with function of time as the method of PH assumption verification and solution to its violation. 
+
+
 &nbsp;
 
 ## 4.4 Final model
@@ -219,4 +235,15 @@ anova(r.model.inter)
 r.final.model = coxph(Surv(time, status) ~ rx + extent + surg + differ + node4 + differ_time + node4_time, data = colon.recur1)
 summary(r.final.model)
 ```
+
+From the final model of recurrence with correction, the coefficients for Lev and Lev + 5-FU group is not significant with p-value > 0.05 compared with the observation group. 
+
+&nbsp;
+
+
+# 5. Conclusion
+
+We conclude that there is no significant difference among the observation, Levamisole, and the Levamisole + 5-FU groups.
+
+&nbsp;
 
