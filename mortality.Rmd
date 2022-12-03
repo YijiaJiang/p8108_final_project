@@ -294,18 +294,22 @@ d.final.model <- coxph(Surv(time, status) ~ obstruct + differ + extent + surg + 
 summary(d.final.model)
 ```
 
-From the results of the summary function for the final mortality model, we see that after we control for all other covariates in the model the coefficient for covariate rxLev is -0.031, which indicates a protective effect. And the hazard rate of death for the group treated with rxlev is 3% less than observation group, with a p-value of 0.78. Furthermore, the confidence interval for the hazard ratio is (0.78, 1.21). 
-
-On the other hand, the coefficient for covariate rxLev+5Fu is -0.36, which indicates a protective effect. And the hazard rate of death for the group treated with rxLev+5Fu is 32.2% less than observation group, with a p-value of 0.003. Furthermore, the confidence interval for the hazard ratio is (0.55, 0.89). 
+From the results of the summary function for the final mortality model, we see that after we control for all other covariates in the model the coefficient for rx2 and rx3 are both significant with p-value of 0.00573 and 0.00579 compared with the observation group, respectively. 
 
 &nbsp;
 
 
 # 5. Discussion
 
-We can now observe whether treatments Levamisole and Levamisole+5-FU help improve the survival rate in colon cancer patients from negative coefficients of different treatment groups. Our result indicates that the hazard rate for the group treated with Levamisole is 97% of what it is for the observation group. Since the p-value for the coefficient is 0.78 which is greater than 0.05, there is no significant evidence to indicate a difference between the hazard rate of the group treated with Levamisole and the hazard rate of the observation group. Therefore, we conclude that the treatment Levamisole is not effective on improving the survival probability in colon cancer patients.
-On the other hand, our result indicates that the hazard rate for the group treated with Levamisole+5-FU is 67.8% of the hazard rate for the observation group. Since the p-value for the coefficient is close to 0, this indicates that there is a significant difference between the hazard rate of the group treated with Levamisole+5-FU and the hazard rate for the observation group. 
-Therefore, we conclude that the treatment Levamisole+5-FU is effective on improving the survival rate in colon cancer patients. There is a 32.2% chance that patients who received the treatment Levamisole+5-FU survive longer than patients who do not receive any treatments and patients who received Levamisole alone.
+We can now observe whether treatments helps improve the survival rate in colon cancer patients from negative coefficients of different treatment groups. 
+
+Because the covariates are time-varying, we consider taking them into account in our model by handling with 'log(time)' to protect our assumption. Our final model is given by: Surv(time, status) ~ obstruct + differ + extent + surg + node4 + rx + obstructt + differt + extentt + surgt + rxt + node4t.
+
+Our result indicates that the hazard ratio for the group treated with rx2 is 6.78, corresponds to a 87.1% chance of longer suvival compared to the observation group. Since the p-value for the coefficient is 0.00573 which is smaller than 0.05, there is significant evidence to indicate a difference between the hazard rate of the group treated with rx2 and the hazard rate of the observation group. Therefore, we conclude that the treatment rx2 is effective on improving the survival probability in colon cancer patients.
+
+On the other hand, our result indicates that the hazard ratio for the group treated with rx3 is 4.35, corresponds to a 81.3% chance of longer suvival compared to the observation group. Since the p-value for the coefficient is 0.00579 which is smaller than 0.05, there is significant evidence to indicate a difference between the hazard rate of the group treated with rx2 and the hazard rate of the observation group. Therefore, we conclude that the treatment rx2 is effective on improving the survival probability in colon cancer patients.
+
+Therefore, we conclude that the treatment Levamisole and Levamisole+5-FU are both effective on improving the survival rate in colon cancer patients.
 
 &nbsp;
 
