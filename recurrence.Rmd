@@ -1,38 +1,26 @@
 ---
-title: "Survival Analysis of Recurrence of Adjuvant Chemotherapy for Colon Cancer"
+title: "survival project"
 author: "Kaitlyn Wang"
 date: "`r Sys.Date()`"
-output: pdf_document
+output: html_document
 ---
 
-```{r, include=FALSE}
+```{r}
 library(survival)
 library(tidyverse)
 library(ggplot2)
 library(survminer)
-library(MASS)
 library(rms)
-library(gridExtra)
 ```
 
 # 1. Data Import and Data Cleaning
 ```{r}
 colon <- survival::colon
 colon.recur <- colon %>% filter(etype == '1') %>% 
-               dplyr::select(-c(nodes,id,study,etype)) %>% 
-               mutate(rx = as.factor(as.numeric(rx)),
-                      sex = as.factor(sex),
-                      obstruct = as.factor(obstruct),
-                      perfor = as.factor(perfor),
-                      adhere = as.factor(adhere),
-                      differ = as.factor(differ),
-                      extent = as.factor(extent),
-                      surg = as.factor(surg),
-                      node4 =as.factor(node4)) %>% 
-               drop_na()
+               select(-c(id,study,etype, node4)) %>% 
+               drop_na() %>% 
+               mutate(rx = as.factor(rx))
 ```
-
-&nbsp;
 
 # 2. Kaplan-Meier Survival Estimate
 ```{r}
@@ -47,15 +35,11 @@ ggsurvplot(recur.fit, conf.int = F, break.time.by = 500, pval = TRUE,
            tables.theme = theme_cleantable())
 ```
 
-&nbsp;
-
 # 3. Log-Rank Test
 ```{r}
 coxph(Surv(time, status) ~ rx, data = colon.recur)
 summary(coxph(Surv(time, status) ~ rx, data = colon.recur))
 ```
-
-&nbsp;
 
 # 4. Cox PH Model 
 ## 4.1 Model Selection
@@ -70,9 +54,9 @@ anova(r.model.aic)
 ```
 
 Stepwise selection method selected model:
-Surv(time, status) ~ differ + rx + extent + surg + node4
+Surv(time, status) ~ differ + rx + extent + surg + nodes
 
-&nbsp;
+remove sex and obstruct
 
 ## 4.2 Model Diagnostic 
 ### 4.2.1 Check proportionality of hazard ratios
@@ -110,61 +94,55 @@ cll.surg = ggsurvplot(r.surg.fit, conf.int = F, font.x.size = 12, font.y.size = 
            title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by Surg")
 ```
 
-```{r}
-r.node4.fit <- survfit(Surv(time, status) ~ node4, data = colon.recur)
-cll.node4 = ggsurvplot(r.node4.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.legend.size = 9,
-           fun = "cloglog",
-           xlim = c(20, 4000),
-           xlab = "Time (Days)",
-           legend.lab = c("0 = No", "1 =Yes"),
-           legend.title = 'node4',
-           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by Nodes")
-```
 
 ```{r}
 splots <- list()
 splots[[1]] <- cll.differ
 splots[[2]] <- cll.extent
 splots[[3]] <- cll.surg
-splots[[4]] <- cll.node4
+
 
 cloglog_plot = arrange_ggsurvplots(splots, print = FALSE, ncol = 2, nrow = 2)
-ggsave(cloglog_plot,file = "./plot/r.C-log-log-plots.pdf",width = 12,height = 15)
-ggsave(cloglog_plot,file = "./plot/r.C-log-log-plots.png",width = 12,height = 15)
-
+ggsave(cloglog_plot,file = "r.C-log-log.pdf",width = 12,height = 15)
 ```
 
 **Schoenfeld residuals**
 ```{r}
-r.residual = cox.zph(coxph(Surv(time, status) ~ differ + rx + extent + surg + node4, data = colon.recur))
+r.residual.fit = coxph(Surv(time, status) ~ differ + rx + extent + surg + nodes, data = colon.recur)
+r.residual = cox.zph(coxph(Surv(time, status) ~ differ + rx + extent + surg + nodes, data = colon.recur))
 r.residual
+
+
+#residual plot for covariate that violate ph assumption
+plot(r.residual[1], ylim = c(-2, 2))
+abline(a = 0, b = 0, col = 2)
+abline(h = r.residual.fit$coef[1], col = 3, lwd = 2, lty = 2)
+
+
+plot(r.residual[5], ylim = c(-2, 2))
+abline(a = 0, b = 0, col = 2)
+abline(h = r.residual.fit$coef[8], col = 3, lwd = 2, lty = 2)
+
+
 residual_plot = ggcoxzph(r.residual, font.main = 10, font.x = 10, font.y = 10, font.tickslab = 8,
          point.alpha = 0.5, point.col = "grey25")
 
-ggsave("./plot/d.schoenfeld residual_plots.pdf", arrangeGrob(grobs = residual_plot))
-ggsave("./plot/d.schoenfeld residual_plots.png", arrangeGrob(grobs = residual_plot))
+ggsave("r.schoenfeld residual_plots.pdf", arrangeGrob(grobs = residual_plot))
 ```
-differ and node4 violates ph assumption
-
-&nbsp;
-
+differ violates ph assumption
 
 ## 4.3 Modification for Violation of PH Assumption
 ```{r}
 #add interaction of covariate with function of time
-colon.recur1 = colon.recur %>% 
-               mutate(differ_time = as.numeric(differ)*log(time),
-                      node4_time = as.numeric(node4)*log(time))
-
-r.model.inter = coxph(Surv(time, status) ~ rx + extent + surg + differ + node4 + differ_time + node4_time, data = colon.recur1)
+r.model.inter = coxph(Surv(time, status) ~ rx + extent + surg + differ + tt(differ) + nodes, data = colon.recur, tt = function(x,t, ...) x*log(t))
 anova(r.model.inter)
+summary(r.model.inter)
 ```
+differ has interaction with time
 
-&nbsp;
 
 ## 4.4 Final model
 ```{r}
-r.final.model = coxph(Surv(time, status) ~ rx + extent + surg + differ + node4 + differ_time + node4_time, data = colon.recur1)
-summary(r.final.model)
+r.model.final = coxph(Surv(time, status) ~ rx + extent + surg + differ + tt(differ) + nodes, data = colon.recur, tt = function(x,t, ...) x*log(t))
+summary(r.model.inter)
 ```
-
