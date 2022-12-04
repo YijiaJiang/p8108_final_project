@@ -261,9 +261,9 @@ We observe significance from Schoenfeld residuals, so we modify the model by add
 With the inclusion of treatment, our final model is given by: Surv(time, status) ~ rx + obstruct + differ + extent + surg + nodes + tt(obstruct) + tt(differ) , data = colon.death, tt = function(x,t, ...) x*log(t)).
 
 ```{r, message=FALSE, warning=FALSE}
-d.model.inter = coxph(Surv(time, status) ~ rx + obstruct + differ + extent + surg + nodes + tt(obstruct) + tt(differ) , data = colon.death, tt = function(x,t, ...) x*log(t))
+d.model.final = coxph(Surv(time, status) ~ rx + obstruct + differ + extent + surg + nodes + tt(obstruct) + tt(differ) , data = colon.death, tt = function(x,t, ...) x*log(t))
 
-summary(d.model.inter)
+summary(d.model.final)
 ```
 
 &nbsp;

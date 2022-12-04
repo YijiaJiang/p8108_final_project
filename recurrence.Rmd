@@ -1,11 +1,11 @@
 ---
-title: "survival project"
-author: "Kaitlyn Wang"
+title: "Survival Analysis of Recurrence of Adjuvant Chemotherapy for Colon Cancer"
+author: "Kaitlyn Wang, Yimiao Pang"
 date: "`r Sys.Date()`"
-output: html_document
+output: pdf_document
 ---
 
-```{r}
+```{r, message=FALSE, include=FALSE}
 library(survival)
 library(tidyverse)
 library(ggplot2)
@@ -14,10 +14,10 @@ library(rms)
 library(gridExtra)
 ```
 
-# 1. Data Import and Data Cleaning
+# 1. Data Tidy
 In this section, we subset the colon data to only include the event of recurrence. 
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 # import the dataset from survival package
 colon <- survival::colon
 
@@ -32,11 +32,12 @@ colon.recur <- colon %>% filter(etype == '1') %>%
 
 
 # 2. Kaplan-Meier Survival Estimate
-```{r}
+```{r, message=FALSE, warning=FALSE}
 recur.fit <- survfit(Surv(time, status) ~ rx, data = colon.recur)
 
 ggsurvplot(recur.fit, conf.int = F, break.time.by = 500, pval = TRUE,
-           font.x.size = 12, font.y.size = 12, font.legend.size = 9, surv.median.line = "hv", legend.labs = c("Obs","Lev","Lev+5FU"),
+           font.x.size = 12, font.y.size = 12, font.legend.size = 9, surv.median.line = "hv",
+           legend.title = "Treatment", legend.labs = c("Observation", "Levamisole","Levamisole+5-FU"),
            title = "Kaplan-Meier Curve for Colon Cancer Recurrence \nby Treatment", 
            xlab = "Time in Days", 
            risk.table = T, risk.table.height = 0.25, risk.table.fontsize = 4, 
@@ -51,7 +52,7 @@ From the Kaplan-Meier curve shown above, there is significant difference among t
 # 3. Log-Rank Test
 
 Given the difference of survival probability among the three treatment groups, we conduct a Log-rank hypothesis test to test the null hypothesis of no difference among the three treatments in the mortality model.
-```{r}
+```{r, message=FALSE, warning=FALSE}
 survdiff(Surv(time, status) ~ rx, data = colon.recur)
 ```
 
@@ -64,7 +65,7 @@ From this log-rank test, we observed a p-value equal 0.00002, which indicates a 
 We now conduct automatic stepwise selection with Akaike information criterion (AIC) to determine the covariates that best represent an appropriate cox proportional hazards model for the event of recurrence. 
 
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 # full model
 r.model.full <- coxph(Surv(time, status) ~ ., data = colon.recur)
 
@@ -78,7 +79,7 @@ Surv(time, status) ~ differ + obstruct + sex + surg + extent + rx + nodes
 
 Then we use the ANOVA procedure to confirm if each of the covariates selected by the stepwise selection method is significant to be included in the Cox Proportional Model.
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 anova(r.model.aic)
 ```
 
@@ -92,14 +93,14 @@ Therefore, we obtain the resulting model, which is Surv(time, status) ~ rx + dif
 ## 4.2 Model Diagnostic 
 ### 4.2.1 Check proportionality of hazard ratios
 **Log of Negative Log of Estimated Survival Function**
-```{r}
+```{r, message=FALSE, warning=FALSE}
 r.differ.fit <- survfit(Surv(time, status) ~ differ, data = colon.recur)
 cll.differ = ggsurvplot(r.differ.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.legend.size = 9,
            fun = "cloglog",
            xlim = c(20, 4000),
-           xlab = "Time (Days)",
-           legend.lab = c("1-well","2-moderate","3-poor"),
-           legend.title = 'Differ',
+           xlab = "Time (until recurrence) in Days",
+           legend.lab = c("1-Well","2-Moderate","3-Poor"),
+           legend.title = "Differentiation of tumour",
            title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by Differ")
 cll.differ
 ```
@@ -108,14 +109,14 @@ According to the plot, the curves in the C-log-log plot are crossing over after 
 
 We continue to plot the C-log-log plot for the covariate extent.
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 r.extent.fit <- survfit(Surv(time, status) ~ extent, data = colon.recur)
 cll.extent = ggsurvplot(r.extent.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.legend.size = 9,
            fun = "cloglog",
            xlim = c(20, 4000),
-           xlab = "Time (Days)",
-           legend.lab = c("1-submucosa","2-muscle","3-serosa", "4-contiguous structures"),
-           legend.title = 'Extent',
+           xlab = "Time (until recurrence) in Days",
+           legend.lab = c("1-Submucosa","2-Muscle","3-Serosa", "4-Contiguous structures"),
+           legend.title = "Extent of local spread",
            title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by Extent")
 cll.extent
 ```
@@ -124,14 +125,14 @@ According to the plot, the curves in the C-log-log plot are crossing with each o
 
 We proceed with the C-log-log plot for the covariate surg.
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 r.surg.fit <- survfit(Surv(time, status) ~ surg, data = colon.recur)
 cll.surg = ggsurvplot(r.surg.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.legend.size = 9,
            fun = "cloglog",
            xlim = c(20, 4000),
-           xlab = "Time (Days)",
-           legend.lab = c("0-short","1-long"),
-           legend.title = 'Surg',
+           xlab = "Time (until recurrence) in Days",
+           legend.lab = c("0-Short","1-Long"),
+           legend.title = "Time from surgery to registration",
            title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by Surg")
 cll.surg
 ```
@@ -145,8 +146,8 @@ r.rx.fit <- survfit(Surv(time, status) ~ rx, data = colon.recur)
 cll.rx <- ggsurvplot(r.rx.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.legend.size = 9,
                          fun = "cloglog",
                          xlim = c(20, 4000),
-                         xlab = "Time (until death) in Days)",
-                         title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Mortality by rx",
+                         xlab = "Time (until recurrence) in Days",
+                         title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by rx",
                          legend.title = "Treatment",
                          legend.labs = c("Observation", "Levamisole","Levamisole+5-FU"))
 
@@ -156,7 +157,7 @@ cll.rx
 According to the plot, the curves for observation group and levamisole group coincide, while the curve for levamisole + 5-FU is parallel to the other two curves. The proportional hazard assumption holds for covariate rx.
 
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 splots <- list()
 splots[[1]] <- cll.differ
 splots[[2]] <- cll.extent
@@ -165,17 +166,19 @@ splots[[4]] <- cll.rx
 
 
 cloglog_plot = arrange_ggsurvplots(splots, print = FALSE, ncol = 2, nrow = 2)
-ggsave(cloglog_plot,file = "r.C-log-log.pdf",width = 12,height = 15)
+ggsave(cloglog_plot,file = "./plot/r.C-log-log-plots.pdf",width = 12,height = 15)
+ggsave(cloglog_plot,file = "./plot/r.C-log-log-plots.png",width = 12,height = 15)
 ```
 
+
 **Schoenfeld residuals**
-```{r}
+```{r, message=FALSE, warning=FALSE}
 r.residual.fit = coxph(Surv(time, status) ~ differ + rx + extent + surg + nodes, data = colon.recur)
 r.residual = cox.zph(coxph(Surv(time, status) ~ differ + rx + extent + surg + nodes, data = colon.recur))
 r.residual
 
 
-#residual plot for covariate that violate ph assumption
+# residual plot for covariate that violate ph assumption
 plot(r.residual[1], ylim = c(-2, 2))
 abline(a = 0, b = 0, col = 2)
 abline(h = r.residual.fit$coef[1], col = 3, lwd = 2, lty = 2)
@@ -190,7 +193,8 @@ residual_plot = ggcoxzph(r.residual, font.main = 10, font.x = 10, font.y = 10, f
          point.alpha = 0.5, point.col = "grey25")
 residual_plot
 
-ggsave("r.schoenfeld residual_plots.pdf", arrangeGrob(grobs = residual_plot))
+ggsave("./plot/r.schoenfeld residual_plots.pdf", arrangeGrob(grobs = residual_plot))
+ggsave("./plot/r.schoenfeld residual_plots.png", arrangeGrob(grobs = residual_plot))
 ```
 differ violates ph assumption
 
@@ -209,8 +213,8 @@ ggsave(r.outlier_dfbeta, file = "./plot/r.outlier_dfbeta.png")
 In terms of dfbeta, the estimated changes in the regression coefficients upon deleting each observation, comparing the magnitudes of the largest dfbeta values to the regression coefficients suggests that none of the observations is terribly influential individually, even though some of the dfbeta values for extent are large compared with the others.
 
 ## 4.3 Modification for Violation of PH Assumption
-```{r}
-#add interaction of covariate with function of time
+```{r, message=FALSE, warning=FALSE}
+# add interaction of covariate with function of time
 r.model.inter = coxph(Surv(time, status) ~ rx + extent + surg + differ + tt(differ) + nodes, data = colon.recur, tt = function(x,t, ...) x*log(t))
 anova(r.model.inter)
 summary(r.model.inter)
@@ -227,13 +231,13 @@ With correction terms, our final model is given by: Surv(time, status) ~ rx + ex
 
 ```{r}
 r.model.final = coxph(Surv(time, status) ~ rx + extent + surg + differ + tt(differ) + nodes, data = colon.recur, tt = function(x,t, ...) x*log(t))
-summary(r.model.inter)
+summary(r.model.final)
 ```
 
 &nbsp;
 
 
-## 5. Conclusion
+# 5. Conclusion
 
 Recall that our final model is given by: Surv(time, status) ~ rx + extent + surg + differ + tt(differ) + nodes.
 
