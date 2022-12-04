@@ -48,19 +48,23 @@ ggsurvplot(death.fit, conf.int = F, break.time.by = 500, pval = TRUE,
            tables.theme = theme_cleantable())
 ```
 
-From the plot above, there is some indication that patients who received the adjuvant treatment with levamisole plus fluorouracil (Lev+5FU) have a higher survival probability than patients with no further treatment and patients who received the treatment with levamisole alone. The median survival time for observation group and levamisole group are approximately 2100 days and 2200 days. However, until the end of the trial, the survival probability of Levamisole+5-FU treatment group is greater than 50% as we fail to observe the curve doesn't cross 50%, which means the median survival is simply undefined.
+From the plot above, there is some indication that patients who received the adjuvant treatment with levamisole plus fluorouracil (Lev + 5FU) have a higher survival probability than patients with no further treatment and patients who received the treatment with levamisole alone. The median survival time for observation group and levamisole group are approximately 2100 days and 2200 days, respectively. However, until the end of the trial, the survival probability of Levamisole + 5-FU treatment group is greater than 50% as we fail to observe the curve crossing the 50% line.
 
 &nbsp;
 
 
 # 3. Log-Rank Test
 
-Noticing the difference of survival probability between the three treatment groups, we do a Log-rank hypothesis test to test the null hypothesis of no difference among the three treatments in the mortality model.
+Noticing the difference of survival probability between the three treatment groups, we conduct a Log-rank hypothesis test to test the null hypothesis of no difference among the three treatments in the mortality model.
 ```{r, message=FALSE, warning=FALSE}
 survdiff(Surv(time, status) ~ rx, data = colon.death)
 ```
 
+<<<<<<< HEAD
 From this log-rank test, we get a p-value that is closed to 0.004, which is significant at a 0.05 level. We want to conclude that there is a significant difference among the three treatments in the mortality model.
+=======
+From this log-rank test, we get a p-value equal to 0.005, which indicates a significant difference among treatment groups at a 0.05 level. 
+>>>>>>> fc812e0f2fdf362b59d99fe5017fcf88363010b4
 
 &nbsp;
 
@@ -78,8 +82,13 @@ d.model.full <- coxph(Surv(time, status) ~ ., data = colon.death)
 d.model.aic <- step(d.model.full, direction = "both", k = 2)
 ```
 
+<<<<<<< HEAD
 The resulting model with the lowest AIC is:
 Surv(time, status) ~ obstruct + differ + extent + surg + nodes + age + rx
+=======
+The resulting model with the AIC is:
+Surv(time, status) ~ obstruct + differ + extent + surg + node4 + age + rx
+>>>>>>> fc812e0f2fdf362b59d99fe5017fcf88363010b4
 
 
 Next, we used the Analysis of Deviance procedure to get the proper Likelihood Ratio Test to confirm if each of the covariates selected by the stepwise selection method is significant to include in the Cox Proportional Model.
@@ -133,7 +142,7 @@ cloglog_differ <- ggsurvplot(d.differ.fit, conf.int = F, font.x.size = 12, font.
 cloglog_differ
 ```
 
-According to the plot, the curves in the C-log-log plot are crossing over after 300 days. The assumption of proportional hazard ratio between the three differ groups is violated as we fail to see three parallel lines against log time.
+According to the plot, the curves in the C-log-log plot are crossing over after 300 days. The assumption of proportional hazard ratio among the three differ groups is violated as we fail to see three parallel lines against log time.
 
 
 We continue to plot the C-log-log plot for the covariate extent.
@@ -231,7 +240,10 @@ From the output above, the tests for covariates "obstruct", "differ" are statist
 # check outliers in term of dfbeta
 outlier_dfbeta <- ggcoxdiagnostics(coxph(Surv(time, status) ~ obstruct + differ + extent + surg + nodes + rx, data = colon.death), 
                                    type = "dfbeta", linear.predictions = FALSE, ggtheme = theme_bw())
+<<<<<<< HEAD
 
+=======
+>>>>>>> fc812e0f2fdf362b59d99fe5017fcf88363010b4
 outlier_dfbeta
 ggsave(outlier_dfbeta, file = "./plot/d.outlier_dfbeta.pdf")
 ggsave(outlier_dfbeta, file = "./plot/d.outlier_dfbeta.png")
@@ -267,20 +279,6 @@ d.final.model <- coxph(Surv(time, status) ~ obstruct + differ + extent + surg + 
 summary(d.final.model)
 ```
 
-From the results of the summary function for the final mortality model, we see that after we control for all other covariates in the model the coefficient for covariate rxLev is -0.031, which indicates a protective effect. And the hazard rate of death for the group treated with rxlev is 3% less than observation group, with a p-value of 0.78. Furthermore, the confidence interval for the hazard ratio is (0.78, 1.21). 
-
-On the other hand, the coefficient for covariate rxLev+5Fu is -0.36, which indicates a protective effect. And the hazard rate of death for the group treated with rxLev+5Fu is 32.2% less than observation group, with a p-value of 0.003. Furthermore, the confidence interval for the hazard ratio is (0.55, 0.89). 
-
-&nbsp;
-
-
-# 5. Discussion
-
-We can now observe whether treatments Levamisole and Levamisole+5-FU help improve the survival rate in colon cancer patients from negative coefficients of different treatment groups. Our result indicates that the hazard rate for the group treated with Levamisole is 97% of what it is for the observation group. Since the p-value for the coefficient is 0.78 which is greater than 0.05, there is no significant evidence to indicate a difference between the hazard rate of the group treated with Levamisole and the hazard rate of the observation group. Therefore, we conclude that the treatment Levamisole is not effective on improving the survival probability in colon cancer patients.
-On the other hand, our result indicates that the hazard rate for the group treated with Levamisole+5-FU is 67.8% of the hazard rate for the observation group. Since the p-value for the coefficient is close to 0, this indicates that there is a significant difference between the hazard rate of the group treated with Levamisole+5-FU and the hazard rate for the observation group. 
-Therefore, we conclude that the treatment Levamisole+5-FU is effective on improving the survival rate in colon cancer patients. There is a 32.2% chance that patients who received the treatment Levamisole+5-FU survive longer than patients who do not receive any treatments and patients who received Levamisole alone.
-
-&nbsp;
 
 
  
