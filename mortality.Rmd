@@ -240,10 +240,6 @@ From the output above, the tests for covariates "obstruct", "differ" are statist
 # check outliers in term of dfbeta
 outlier_dfbeta <- ggcoxdiagnostics(coxph(Surv(time, status) ~ obstruct + differ + extent + surg + nodes + rx, data = colon.death), 
                                    type = "dfbeta", linear.predictions = FALSE, ggtheme = theme_bw())
-<<<<<<< HEAD
-
-=======
->>>>>>> fc812e0f2fdf362b59d99fe5017fcf88363010b4
 outlier_dfbeta
 ggsave(outlier_dfbeta, file = "./plot/d.outlier_dfbeta.pdf")
 ggsave(outlier_dfbeta, file = "./plot/d.outlier_dfbeta.png")
@@ -263,21 +259,41 @@ d.model.inter = coxph(Surv(time, status) ~ rx + obstruct + differ + extent + sur
 summary(d.model.inter)
 anova(d.model.inter)
 ```
-Based on the test interaction for proportionality, the result shows that all the interactions of covaraites with 'log(time)' are significant (i.e., less than 0.05). Therefore, we can include these interactions with function of time as the method of PH assumption verification and solution to its violation. 
+
+We observe significance from Schoenfeld residuals, so we modify the model by adding the interaction of covariates with function of time.
 
 &nbsp;
 
 
-
-
 ## 4.4 Final model
 
-With the inclusion of treatment, our final model is given by: Surv(time, status) ~ obstruct + differ + extent + surg + node4 + rx + obstructt + differt + extentt + surgt + rxt + node4t.
+With the inclusion of treatment, our final model is given by: Surv(time, status) ~ rx + obstruct + differ + extent + surg + nodes + tt(obstruct) + tt(differ) , data = colon.death, tt = function(x,t, ...) x*log(t)).
 
 ```{r, message=FALSE, warning=FALSE}
-d.final.model <- coxph(Surv(time, status) ~ obstruct + differ + extent + surg + node4 + rx + obstructt + differt + extentt + rxt + node4t + surgt, data = colon.death.inter)
-summary(d.final.model)
+d.model.inter = coxph(Surv(time, status) ~ rx + obstruct + differ + extent + surg + nodes + tt(obstruct) + tt(differ) , data = colon.death, tt = function(x,t, ...) x*log(t))
+
+summary(d.model.inter)
 ```
+
+&nbsp;
+
+# 5. Discussion
+
+Our final model is given by: Surv(time, status) ~ rx + obstruct + differ + extent + surg + nodes + tt(obstruct) + tt(differ).
+
+We can now observe whether treatments helps improve the survival rate in colon cancer patients from negative coefficients of different treatment groups. 
+
+Our result indicates that the hazard ratio for the group treated with rxLev is 0.934, corresponding to a 6.6% decrease in risk of death compared to the observation group. Since the p-value for the coefficient is 0.552 which is larger than 0.05, there is not significant evidence to indicate a survival difference between the group treated with rxLev and the observation group. Additionally, we are 95% confident that the true risk of death is between [0.747, 1.169]. Therefore, we conclude that the treatment rxLev is not effective on improving the survival probability in colon cancer patients.
+
+
+On the other hand, our result indicates that the hazard ratio for the group treated with rxLev+5FU is 0.700, corresponding to a 30% decrease in risk of death compared to the observation group. Since the p-value for the coefficient is 0.003 which is samller than 0.05, there is significant evidence to indicate a survival difference between the group treated with rxLev+5FU and the observation group. Additionally, we are 95% confident that the true risk of death is between [0.552, 0.889]. Therefore, we conclude that the treatment rxLev+5FU is effective on improving the survival probability in colon cancer patients.
+
+Therefore, we conclude that the treatment Levamisole+5-FU is effective as an adjuvant Chemotherapy on improving the survival rate in colon cancer patients.
+
+&nbsp;
+
+
+ 
 
 
 
