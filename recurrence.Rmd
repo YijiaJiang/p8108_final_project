@@ -11,55 +11,58 @@ library(tidyverse)
 library(ggplot2)
 library(survminer)
 library(rms)
+library(gridExtra)
 ```
 
 # 1. Data Import and Data Cleaning
+In this section, we subset the colon data to only include the event of recurrence. 
+
 ```{r}
+# import the dataset from survival package
 colon <- survival::colon
+
+# recurrence dataset
 colon.recur <- colon %>% filter(etype == '1') %>% 
                select(-c(id,study,etype, node4)) %>% 
                drop_na() %>% 
                mutate(rx = as.factor(rx))
 ```
 
+&nbsp;
+
+
 # 2. Kaplan-Meier Survival Estimate
 ```{r}
 recur.fit <- survfit(Surv(time, status) ~ rx, data = colon.recur)
 
 ggsurvplot(recur.fit, conf.int = F, break.time.by = 500, pval = TRUE,
-           font.x.size = 12, font.y.size = 12, font.legend.size = 9, surv.median.line = "hv", 
-           legend.title = "Treatment", legend.labs = c("Observation", "Levamisole","Levamisole+5-FU"),
+           font.x.size = 12, font.y.size = 12, font.legend.size = 9, surv.median.line = "hv", legend.labs = c("Obs","Lev","Lev+5FU"),
            title = "Kaplan-Meier Curve for Colon Cancer Recurrence \nby Treatment", 
            xlab = "Time in Days", 
            risk.table = T, risk.table.height = 0.25, risk.table.fontsize = 4, 
            tables.theme = theme_cleantable())
 ```
 
-<<<<<<< HEAD
-=======
-From the Kaplan-Meier curve shown above, there is significant difference among the three treatment groups given p-value < 0.0001, and patients treated with levamisole + 5-FU have higher survival probability than patients with no further treatment and patients who received the treatment with levamisole alone. The median survival time for observation group and levamisole group are approximately 1100 days and 1200 days, respectively. However, until the end of the trial, the survival probability of Levamisole + 5-FU treatment group is greater than 50% as we fail to observe the curve crossing the 50% line.
+From the Kaplan-Meier curve shown above, there is significant difference among the three treatment groups given p-value < 0.0001, and patients treated with levamisole + 5-FU have higher survival probability than patients with no further treatment and patients who received the treatment with levamisole alone. The median survival time for observation group and levamisole group are approximately 1100 days and 1300 days, respectively. However, until the end of the trial, the survival probability of Levamisole + 5-FU treatment group is greater than 50% as we fail to observe the curve crossing the 50% line.
 
 &nbsp;
 
->>>>>>> fc812e0f2fdf362b59d99fe5017fcf88363010b4
+
 # 3. Log-Rank Test
 
-Given the difference of survival probability between the three treatment groups, we conduct a Log-rank hypothesis test to test the null hypothesis of no difference among the three treatments in the mortality model.
+Given the difference of survival probability among the three treatment groups, we conduct a Log-rank hypothesis test to test the null hypothesis of no difference among the three treatments in the mortality model.
 ```{r}
 survdiff(Surv(time, status) ~ rx, data = colon.recur)
 ```
 
-<<<<<<< HEAD
-=======
 From this log-rank test, we observed a p-value equal 0.00002, which indicates a significant difference among treatment groups at a 0.05 level. 
 
-&nbsp;
 
->>>>>>> fc812e0f2fdf362b59d99fe5017fcf88363010b4
 # 4. Cox PH Model 
 ## 4.1 Model Selection
 
-We now use automatic stepwise selection with Akaike information criterion (AIC) to determine the covariates that best represent an appropriate cox proportional hazards model for the event of recurrence.
+We now conduct automatic stepwise selection with Akaike information criterion (AIC) to determine the covariates that best represent an appropriate cox proportional hazards model for the event of recurrence. 
+
 
 ```{r}
 # full model
@@ -67,47 +70,43 @@ r.model.full <- coxph(Surv(time, status) ~ ., data = colon.recur)
 
 # stepwise selection with AIC criterion
 r.model.aic <- step(r.model.full, direction = "both", k = 2)
+```
 
+The selected model with stepwise selection method is:
+Surv(time, status) ~ differ + obstruct + sex + surg + extent + rx + nodes
+
+
+Then we use the ANOVA procedure to confirm if each of the covariates selected by the stepwise selection method is significant to be included in the Cox Proportional Model.
+
+```{r}
 anova(r.model.aic)
 ```
 
-<<<<<<< HEAD
-Stepwise selection method selected model:
-Surv(time, status) ~ differ + rx + extent + surg + nodes
-=======
-The resulting model with the AIC is:
-Surv(time, status) ~ differ + extent + surg + node4 + rx
+The p-values for covariates "rx", "nodes", "differ", "extent", and "surg" are less than 0.05, except for "sex" and "obstruct", indicating that they have a significant effect on time until recurrence. Thus, we will include these 5 covariates in our Cox PH model.
 
-We can see that p-values for covariates "differ, extent, surg, node4 and rx" are smaller than 0.05, indicating that they have a significant effect on event time of recurrence. Therefore, we will include these 5 covariates in our Cox PH model.
+Therefore, we obtain the resulting model, which is Surv(time, status) ~ rx + differ + extent + surg + nodes.
 
-Therefore, we obtain the resulting model, which is Surv(time, status) ~ obstruct + differ + extent + surg + node4 + rx.
->>>>>>> fc812e0f2fdf362b59d99fe5017fcf88363010b4
+&nbsp;
 
-remove sex and obstruct
 
 ## 4.2 Model Diagnostic 
 ### 4.2.1 Check proportionality of hazard ratios
-
 **Log of Negative Log of Estimated Survival Function**
-
-To check the proportional hazards assumption for this model, we make diagnostic plots using log of negative log of estimated survival function. We start with differ.
-
-
 ```{r}
 r.differ.fit <- survfit(Surv(time, status) ~ differ, data = colon.recur)
 cll.differ = ggsurvplot(r.differ.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.legend.size = 9,
-                        fun = "cloglog",
-                        xlim = c(20, 4000),
-                        xlab = "Time (Days)",
-                        legend.lab = c("1-well","2-moderate","3-poor"),
-                        legend.title = 'Differ',
-                        title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by differ")
+           fun = "cloglog",
+           xlim = c(20, 4000),
+           xlab = "Time (Days)",
+           legend.lab = c("1-well","2-moderate","3-poor"),
+           legend.title = 'Differ',
+           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by Differ")
 cll.differ
 ```
 
-The assumption of proportional hazard ratio among the three differ groups is violated as we fail to see three parallel lines against log time.
+According to the plot, the curves in the C-log-log plot are crossing over after 100 days. The assumption of proportional hazard among the three differ groups is violated as we fail to see three parallel lines against log time.
 
-We continue with C-log-log plot for covariate extent.
+We continue to plot the C-log-log plot for the covariate extent.
 
 ```{r}
 r.extent.fit <- survfit(Surv(time, status) ~ extent, data = colon.recur)
@@ -117,12 +116,13 @@ cll.extent = ggsurvplot(r.extent.fit, conf.int = F, font.x.size = 12, font.y.siz
            xlab = "Time (Days)",
            legend.lab = c("1-submucosa","2-muscle","3-serosa", "4-contiguous structures"),
            legend.title = 'Extent',
-           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by extent")
+           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by Extent")
 cll.extent
 ```
 
-As shown in the plot, the curves are crossing over around 100 days. The assumption of proportional hazard ratio of extent is violated as we fail to see four parallel lines against log time.
+According to the plot, the curves in the C-log-log plot are crossing with each other. The assumption of proportional hazard of extent is violated as we fail to see four parallel lines against log time.
 
+We proceed with the C-log-log plot for the covariate surg.
 
 ```{r}
 r.surg.fit <- survfit(Surv(time, status) ~ surg, data = colon.recur)
@@ -132,34 +132,17 @@ cll.surg = ggsurvplot(r.surg.fit, conf.int = F, font.x.size = 12, font.y.size = 
            xlab = "Time (Days)",
            legend.lab = c("0-short","1-long"),
            legend.title = 'Surg',
-           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by surg")
+           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by Surg")
 cll.surg
 ```
 
-<<<<<<< HEAD
-=======
 According to the C-log-log plot for surg, the lines of two groups coincide, which indicates that the cox proportional hazards assumption holds for surg.
 
-
-
-```{r}
-r.node4.fit <- survfit(Surv(time, status) ~ node4, data = colon.recur)
-cll.node4 = ggsurvplot(r.node4.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.legend.size = 9,
-           fun = "cloglog",
-           xlim = c(20, 4000),
-           xlab = "Time (Days)",
-           legend.lab = c("0 = No", "1 =Yes"),
-           legend.title = 'node4',
-           title = "Log of Negative Log of Estimated Survival Function \nfor Colon Cancer Recurrence by nodes")
-cll.node4
-```
->>>>>>> fc812e0f2fdf362b59d99fe5017fcf88363010b4
-
-According to the plot, the two curves are approximately parallel to each other. We believe that the cox proportional assumption holds for the covariate node4.
+We continue to plot the C-log-log plot for the covariate rx.
 
 ```{r, message=FALSE, warning=FALSE}
 r.rx.fit <- survfit(Surv(time, status) ~ rx, data = colon.recur)
-cll_rx <- ggsurvplot(r.rx.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.legend.size = 9,
+cll.rx <- ggsurvplot(r.rx.fit, conf.int = F, font.x.size = 12, font.y.size = 12, font.legend.size = 9,
                          fun = "cloglog",
                          xlim = c(20, 4000),
                          xlab = "Time (until death) in Days)",
@@ -167,7 +150,7 @@ cll_rx <- ggsurvplot(r.rx.fit, conf.int = F, font.x.size = 12, font.y.size = 12,
                          legend.title = "Treatment",
                          legend.labs = c("Observation", "Levamisole","Levamisole+5-FU"))
 
-cll_rx
+cll.rx
 ```
 
 According to the plot, the curves for observation group and levamisole group coincide, while the curve for levamisole + 5-FU is parallel to the other two curves. The proportional hazard assumption holds for covariate rx.
@@ -178,16 +161,8 @@ splots <- list()
 splots[[1]] <- cll.differ
 splots[[2]] <- cll.extent
 splots[[3]] <- cll.surg
-<<<<<<< HEAD
+splots[[4]] <- cll.rx
 
-=======
-splots[[4]] <- cll.node4
-splots[[5]] <- cll_rx
-
-cloglog_plot = arrange_ggsurvplots(splots, print = FALSE, ncol = 2, nrow = 3)
-ggsave(cloglog_plot,file = "./plot/r.C-log-log-plots.pdf",width = 12,height = 15)
-ggsave(cloglog_plot,file = "./plot/r.C-log-log-plots.png",width = 12,height = 15)
->>>>>>> fc812e0f2fdf362b59d99fe5017fcf88363010b4
 
 cloglog_plot = arrange_ggsurvplots(splots, print = FALSE, ncol = 2, nrow = 2)
 ggsave(cloglog_plot,file = "r.C-log-log.pdf",width = 12,height = 15)
@@ -215,32 +190,23 @@ residual_plot = ggcoxzph(r.residual, font.main = 10, font.x = 10, font.y = 10, f
          point.alpha = 0.5, point.col = "grey25")
 residual_plot
 
-<<<<<<< HEAD
 ggsave("r.schoenfeld residual_plots.pdf", arrangeGrob(grobs = residual_plot))
 ```
 differ violates ph assumption
-=======
-ggsave("./plot/r.schoenfeld residual_plots.pdf", arrangeGrob(grobs = residual_plot))
-ggsave("./plot/r.schoenfeld residual_plots.png", arrangeGrob(grobs = residual_plot))
-```
-differ and node4 violates ph assumption
 
-From the output above, the tests for covariates "node4" and "differ" are statistically significant. Therefore, we assume there is violation of proportional hazard assumption on these covariates, which requires corrections of non-proportional hazard ratio.
+From the output above, the tests for covariates "differ" is statistically significant. Therefore, we assume there is violation of proportional hazard assumption on "differ", which requires correction of non-proportionality.
 
 
 ### 4.2.2 Test influential observations 
-
 ```{r, message=FALSE, warning=FALSE}
 # check outliers in term of dfbeta
-r.outlier_dfbeta <- ggcoxdiagnostics(coxph(Surv(time, status) ~ differ + extent + surg + node4 + rx, data = colon.recur), 
+r.outlier_dfbeta <- ggcoxdiagnostics(coxph(Surv(time, status) ~ differ + extent + surg + nodes + rx, data = colon.recur), 
                                    type = "dfbeta", linear.predictions = FALSE, ggtheme = theme_bw())
 r.outlier_dfbeta
 ggsave(r.outlier_dfbeta, file = "./plot/r.outlier_dfbeta.pdf")
 ggsave(r.outlier_dfbeta, file = "./plot/r.outlier_dfbeta.png")
 ```
-In terms of dfbeta - the estimated changes in the regression coefficients upon deleting each observation, comparing the magnitudes of the largest dfbeta values to the regression coefficients suggests that none of the observations is terribly influential individually, even though some of the dfbeta values for extent are large compared with the others.
-
->>>>>>> fc812e0f2fdf362b59d99fe5017fcf88363010b4
+In terms of dfbeta, the estimated changes in the regression coefficients upon deleting each observation, comparing the magnitudes of the largest dfbeta values to the regression coefficients suggests that none of the observations is terribly influential individually, even though some of the dfbeta values for extent are large compared with the others.
 
 ## 4.3 Modification for Violation of PH Assumption
 ```{r}
@@ -249,33 +215,37 @@ r.model.inter = coxph(Surv(time, status) ~ rx + extent + surg + differ + tt(diff
 anova(r.model.inter)
 summary(r.model.inter)
 ```
-differ has interaction with time
 
-<<<<<<< HEAD
-=======
-???The result shows that all the interactions of covaraites with 'log(time)' are significant (i.e., less than 0.05). Therefore, we can include these interactions with function of time as the method of PH assumption verification and solution to its violation. 
-
+Since we have observed the violation of PH assumption for differ from Schoenfeld residuals, we modified the model by adding an interaction of covariate differ with transformation of time.
 
 &nbsp;
->>>>>>> fc812e0f2fdf362b59d99fe5017fcf88363010b4
+
 
 ## 4.4 Final model
+
+With correction terms, our final model is given by: Surv(time, status) ~ rx + extent + surg + differ + tt(differ) + nodes.
+
 ```{r}
 r.model.final = coxph(Surv(time, status) ~ rx + extent + surg + differ + tt(differ) + nodes, data = colon.recur, tt = function(x,t, ...) x*log(t))
 summary(r.model.inter)
 ```
-<<<<<<< HEAD
-=======
-
-From the final model of recurrence with correction, the coefficients for Lev and Lev + 5-FU group is not significant with p-value > 0.05 compared with the observation group. 
 
 &nbsp;
 
 
-# 5. Conclusion
+## 5. Conclusion
 
-We conclude that there is no significant difference among the observation, Levamisole, and the Levamisole + 5-FU groups.
+Recall that our final model is given by: Surv(time, status) ~ rx + extent + surg + differ + tt(differ) + nodes.
+
+Since the p-value for the coefficient of rxLev group is 0.539 which is larger than 0.05, there is not significant evidence to indicate a difference of tiem of recurrence between the group treated with rxLev and the observation group. Additionally, we are 95% confident that the true risk ratio of recurrence is between [0.752, 1.161]. Therefore, we conclude that the treatment rxLev is not effective on decreasing the risk of recurrence.
+
+
+On the other hand, our result indicates that the hazard ratio for the group treated with rxLev + 5FU is 0.601, corresponding to a 40% decrease in risk of recurrence compared to the observation group. Since the p-value is 0.0000284 which is smaller than 0.05, there is a significant difference between the group treated with rxLev + 5FU and the observation group. Additionally, corresponding 95% CI is between [0.474, 0.763]. Therefore, we conclude that the treatment rxLev + 5FU is effective on decreasing the risk of recurrence.
+
+Therefore, we conclude that the treatment levamisole + 5-FU is effective as an adjuvant chemotherapy on decreasing the risk of recurrence.
 
 &nbsp;
 
->>>>>>> fc812e0f2fdf362b59d99fe5017fcf88363010b4
+
+
+
