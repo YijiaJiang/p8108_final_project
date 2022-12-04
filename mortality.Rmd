@@ -60,11 +60,7 @@ Noticing the difference of survival probability between the three treatment grou
 survdiff(Surv(time, status) ~ rx, data = colon.death)
 ```
 
-<<<<<<< HEAD
 From this log-rank test, we get a p-value that is closed to 0.004, which is significant at a 0.05 level. We want to conclude that there is a significant difference among the three treatments in the mortality model.
-=======
-From this log-rank test, we get a p-value equal to 0.005, which indicates a significant difference among treatment groups at a 0.05 level. 
->>>>>>> fc812e0f2fdf362b59d99fe5017fcf88363010b4
 
 &nbsp;
 
@@ -82,13 +78,8 @@ d.model.full <- coxph(Surv(time, status) ~ ., data = colon.death)
 d.model.aic <- step(d.model.full, direction = "both", k = 2)
 ```
 
-<<<<<<< HEAD
 The resulting model with the lowest AIC is:
 Surv(time, status) ~ obstruct + differ + extent + surg + nodes + age + rx
-=======
-The resulting model with the AIC is:
-Surv(time, status) ~ obstruct + differ + extent + surg + node4 + age + rx
->>>>>>> fc812e0f2fdf362b59d99fe5017fcf88363010b4
 
 
 Next, we used the Analysis of Deviance procedure to get the proper Likelihood Ratio Test to confirm if each of the covariates selected by the stepwise selection method is significant to include in the Cox Proportional Model.
