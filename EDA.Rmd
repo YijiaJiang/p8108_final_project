@@ -139,7 +139,7 @@ colon_recur = colon %>%
   select(id, rx, tt_recur, recur) 
 
 colon_ass = merge(colon_death, colon_recur, by = c("id","rx")) %>% 
-  mutate(comp = ifelse(death == 1 || recur == 1, 1, 0)) %>% 
+  mutate(comp = ifelse(death == 1 | recur == 1, 1, 0)) %>% 
     dplyr::arrange(id)
 
 colon_ass$tt_comp = rje::rowMins(as.matrix((colon_ass[,c("tt_death", "tt_recur")])))
