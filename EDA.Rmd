@@ -64,6 +64,7 @@ label(colon_tb$differ) <- "Differentiation of tumour"
 label(colon_tb$extent) <- "Extent of local spread"
 label(colon_tb$surg) <- "Time from surgery to registration"
 label(colon_tb$node4) <- "More than 4 positive lymph nodes"
+label(colon_tb$nodes) <- "More than 4 positive lymph nodes"
 
 units(colon_tb$age) <- "years"
 units(colon_tb$time) <- "days"
